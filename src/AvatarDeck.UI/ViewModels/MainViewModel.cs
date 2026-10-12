@@ -13,6 +13,7 @@ namespace AvatarDeck.UI.ViewModels;
 
 /// <summary>
 /// Root view model of the tablet. Shared by the desktop window and the VR overlay so both always show the same state.
+/// Layout editing lives in <c>MainViewModel.Editing.cs</c>.
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisposable
 {
@@ -28,7 +29,9 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
     private readonly INotificationService _notifications;
     private readonly ILogger<MainViewModel> _logger;
     private readonly Dictionary<string, List<WidgetViewModel>> _widgetsByParameter = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, NavItemViewModel> _navByWidgetId = new(StringComparer.Ordinal);
     private readonly List<WidgetViewModel> _allWidgets = [];
+    private readonly List<FolderViewModel> _allFolders = [];
     private readonly DispatcherTimer _statusTimer;
     private CancellationTokenSource? _saveCts;
     private bool _switchingProfile;
@@ -65,7 +68,8 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
 
     public ObservableCollection<NavItemViewModel> NavItems { get; } = [];
 
-    public ObservableCollection<WidgetViewModel> VisibleWidgets { get; } = [];
+    /// <summary>The current page's widgets, grouped into sections.</summary>
+    public ObservableCollection<SectionViewModel> Sections { get; } = [];
 
     public ObservableCollection<FolderViewModel> SubFolders { get; } = [];
 
@@ -90,11 +94,11 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
     private NavItemViewModel? _selectedNav;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanGoUp), nameof(PageTitle))]
+    [NotifyPropertyChangedFor(nameof(CanGoUp), nameof(PageTitle), nameof(PageGlyph), nameof(PageAccent), nameof(IsFolderPage))]
     private FolderViewModel? _currentFolder;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSearching), nameof(PageTitle), nameof(ShowPresets))]
+    [NotifyPropertyChangedFor(nameof(IsSearching), nameof(PageTitle), nameof(ShowPresets), nameof(IsFolderPage))]
     private string _searchText = string.Empty;
 
     [ObservableProperty]
@@ -111,16 +115,25 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
     [ObservableProperty]
     private bool _isEmpty;
 
+    [ObservableProperty]
+    private string _emptyMessage = string.Empty;
+
     public bool IsSearching => !string.IsNullOrWhiteSpace(SearchText);
 
     /// <summary>The presets page is replaced by search results while searching.</summary>
     public bool ShowPresets => IsPresetsPage && !IsSearching;
+
+    public bool IsFolderPage => CurrentFolder is not null && !IsSearching;
 
     public bool CanGoUp => CurrentFolder?.Parent is not null && !IsSearching;
 
     public string PageTitle => IsSearching
         ? $"Results for “{SearchText.Trim()}”"
         : IsPresetsPage ? "Presets" : CurrentFolder?.Path ?? SelectedNav?.Title ?? string.Empty;
+
+    public string PageGlyph => CurrentFolder?.Glyph ?? SelectedNav?.Glyph ?? string.Empty;
+
+    public Avalonia.Media.IBrush PageAccent => CurrentFolder?.AccentBrush ?? SelectedNav?.AccentBrush ?? Icons.Brush(null);
 
     /// <summary>Loads the profile list and the initial profile.</summary>
     public async Task InitializeAsync()
@@ -150,14 +163,29 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
     private void OnActiveProfileChanged(object? sender, AvatarProfile? profile) =>
         Dispatcher.UIThread.Post(async () =>
         {
-            LoadProfile(profile);
+            CloseEditors();
+            LoadProfile(profile, isRebuild: false);
             await RefreshProfilesAsync();
         });
 
-    private void LoadProfile(AvatarProfile? profile)
+    /// <summary>
+    /// (Re)creates every view model from the profile model. Used on profile switch and after layout edits;
+    /// <paramref name="isRebuild"/> (after an edit) restores the page and search that were open.
+    /// </summary>
+    private void LoadProfile(AvatarProfile? profile, bool isRebuild)
     {
+        var keepNavKind = isRebuild ? SelectedNav?.Kind : null;
+        var keepFolderId = isRebuild ? CurrentFolder?.Model.Id : null;
+        var search = SearchText;
+        foreach (var toggle in _allWidgets.OfType<ToggleWidgetViewModel>())
+        {
+            toggle.StateChanged -= OnToggleStateChanged;
+        }
+
         _widgetsByParameter.Clear();
+        _navByWidgetId.Clear();
         _allWidgets.Clear();
+        _allFolders.Clear();
         NavItems.Clear();
         Presets.Clear();
         AvatarName = profile?.Name ?? "No avatar";
@@ -169,14 +197,27 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
         }
 
         var favorites = profile.Favorites.ToHashSet(StringComparer.Ordinal);
-        NavItems.Add(new NavItemViewModel(NavKind.Favorites, "Favorites", ""));
+        NavItems.Add(new NavItemViewModel(NavKind.Favorites, "Favorites", "") { AccentBrush = Icons.Brush("#FFC857") });
         foreach (var folder in profile.Folders)
         {
-            NavItems.Add(new NavItemViewModel(NavKind.Folder, folder.Name, "", BuildFolder(folder, null, favorites)));
+            var folderVm = BuildFolder(folder, null, favorites);
+            if (folder.Hidden && !IsEditMode)
+            {
+                continue;
+            }
+
+            var nav = new NavItemViewModel(NavKind.Folder, folder.Name, folderVm.Glyph, folderVm) { AccentBrush = folderVm.AccentBrush };
+            foreach (var widget in folderVm.AllWidgets())
+            {
+                _navByWidgetId[widget.Id] = nav;
+            }
+
+            NavItems.Add(nav);
         }
 
         NavItems.Add(new NavItemViewModel(NavKind.Presets, "Presets", ""));
         Presets.ReplaceWith(profile.Presets.Select(p => new PresetViewModel(p)));
+        RebuildFolderChoices();
 
         // Show current VRChat values right away.
         foreach (var (parameter, widgets) in _widgetsByParameter)
@@ -187,21 +228,55 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
             }
         }
 
+        foreach (var nav in NavItems)
+        {
+            nav.RefreshBadge();
+        }
+
+        foreach (var toggle in _allWidgets.OfType<ToggleWidgetViewModel>())
+        {
+            toggle.StateChanged += OnToggleStateChanged;
+        }
+
         _switchingProfile = true;
         SelectedProfile = Profiles.FirstOrDefault(p => p.AvatarId == profile.AvatarId);
         _switchingProfile = false;
 
-        SelectedNav = NavItems.FirstOrDefault(n => n.Folder?.Model.Id == profile.Layout.LastFolderId)
-            ?? (favorites.Count > 0 ? NavItems[0] : NavItems.ElementAtOrDefault(1) ?? NavItems[0]);
+        // Restore the open page (after an edit), else the last folder of this avatar, else Favorites / first folder.
+        var restoreId = keepFolderId ?? profile.Layout.LastFolderId;
+        var restored = _allFolders.FirstOrDefault(f => f.Model.Id == restoreId);
+        var restoredNav = restored is null ? null : NavItems.FirstOrDefault(n => n.Folder == restored.Root);
+        if (restoredNav is not null)
+        {
+            SelectedNav = restoredNav;
+            CurrentFolder = restored;
+        }
+        else if (keepNavKind is NavKind.Favorites or NavKind.Presets)
+        {
+            SelectedNav = NavItems.First(n => n.Kind == keepNavKind);
+        }
+        else
+        {
+            SelectedNav = favorites.Count > 0 ? NavItems[0] : NavItems.ElementAtOrDefault(1) ?? NavItems[0];
+        }
+
+        if (isRebuild)
+        {
+            SearchText = search; // an edit made from search results keeps the results open
+        }
+
+        RefreshPage();
     }
 
     private FolderViewModel BuildFolder(Folder folder, FolderViewModel? parent, HashSet<string> favorites)
     {
         var vm = new FolderViewModel(folder, parent);
+        _allFolders.Add(vm);
         foreach (var widget in folder.Widgets)
         {
             var widgetVm = WidgetViewModel.Create(widget, this, vm.Path);
             widgetVm.IsFavorite = favorites.Contains(widget.Id);
+            widgetVm.IsEditMode = IsEditMode;
             vm.Widgets.Add(widgetVm);
             _allWidgets.Add(widgetVm);
             foreach (var parameter in widget.Parameters)
@@ -288,42 +363,116 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
     [RelayCommand]
     private void ClearSearch() => SearchText = string.Empty;
 
+    private bool IsVisible(WidgetViewModel widget) => IsEditMode || !widget.Model.Hidden;
+
     private void RefreshPage()
     {
-        IEnumerable<WidgetViewModel> widgets;
+        Sections.Clear();
         IEnumerable<FolderViewModel> subFolders = [];
 
         if (IsSearching)
         {
             var terms = SearchText.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            widgets = _allWidgets.Where(w => terms.All(t =>
-                w.Label.Contains(t, StringComparison.CurrentCultureIgnoreCase)
-                || w.Parameter.Contains(t, StringComparison.OrdinalIgnoreCase)
-                || w.Path.Contains(t, StringComparison.CurrentCultureIgnoreCase)));
+            var hiddenFolders = _allFolders.Where(f => f.IsHidden).SelectMany(f => f.AllWidgets()).ToHashSet();
+            var results = _allWidgets
+                .Where(w => IsVisible(w) && (IsEditMode || !hiddenFolders.Contains(w)))
+                .Where(w => terms.All(t =>
+                    w.Label.Contains(t, StringComparison.CurrentCultureIgnoreCase)
+                    || w.Parameter.Contains(t, StringComparison.OrdinalIgnoreCase)
+                    || w.Path.Contains(t, StringComparison.CurrentCultureIgnoreCase)))
+                .ToList();
+            AddFlatSection(results);
         }
         else if (SelectedNav?.Kind == NavKind.Favorites)
         {
             var order = _profiles.ActiveProfile?.Favorites ?? [];
-            widgets = _allWidgets.Where(w => w.IsFavorite).OrderBy(w => order.IndexOf(w.Id));
+            AddFlatSection(_allWidgets.Where(w => w.IsFavorite && IsVisible(w)).OrderBy(w => order.IndexOf(w.Id)).ToList());
         }
-        else if (IsPresetsPage)
+        else if (!IsPresetsPage && CurrentFolder is { } folder)
         {
-            widgets = [];
-        }
-        else
-        {
-            widgets = CurrentFolder?.Widgets ?? [];
-            subFolders = CurrentFolder?.Children ?? [];
+            foreach (var section in BuildSections(folder.Widgets.Where(IsVisible).ToList()))
+            {
+                Sections.Add(section);
+            }
+
+            subFolders = folder.Children.Where(c => IsEditMode || !c.IsHidden);
         }
 
-        VisibleWidgets.ReplaceWith(widgets);
         SubFolders.ReplaceWith(subFolders);
-        IsEmpty = VisibleWidgets.Count == 0 && SubFolders.Count == 0 && !(IsPresetsPage && !IsSearching);
+        IsEmpty = Sections.Count == 0 && SubFolders.Count == 0 && !ShowPresets;
+        EmptyMessage = _profiles.ActiveProfile is { } active && !active.AllWidgets().Any()
+            ? "This avatar has no custom toggles or sliders.\nOnly VRChat's built-in parameters were found."
+            : IsSearching ? "No control matches this search."
+            : SelectedNav?.Kind == NavKind.Favorites ? "No favorites yet.\nStar a control to pin it here."
+            : "This folder is empty.";
         OnPropertyChanged(nameof(PageTitle));
+        OnPropertyChanged(nameof(PageGlyph));
+        OnPropertyChanged(nameof(PageAccent));
         OnPropertyChanged(nameof(CanGoUp));
+        OnPropertyChanged(nameof(IsFolderPage));
     }
 
-    // ───────────────────────────── Favorites, history ─────────────────────────────
+    /// <summary>Search results / favorites: one section, full labels, folder path shown.</summary>
+    private void AddFlatSection(List<WidgetViewModel> widgets)
+    {
+        foreach (var widget in widgets)
+        {
+            widget.DisplayLabel = widget.Label;
+            widget.ShowPath = true;
+        }
+
+        if (widgets.Count > 0)
+        {
+            Sections.Add(new SectionViewModel(null, widgets));
+        }
+    }
+
+    /// <summary>
+    /// Groups a page's widgets by first word ("Hair Hue", "Hair Swap" → section "Hair": Hue, Swap).
+    /// Words shared by a single widget stay in an untitled first section. No headers when it would not help.
+    /// </summary>
+    private static List<SectionViewModel> BuildSections(List<WidgetViewModel> widgets)
+    {
+        foreach (var widget in widgets)
+        {
+            widget.DisplayLabel = widget.Label;
+            widget.ShowPath = false;
+        }
+
+        var groups = widgets.GroupBy(w => ProfileBuilder.SectionKey(w.Label)).ToList();
+        var titled = groups.Where(g => g.Count() >= 2).ToList();
+        if (titled.Count == 0 || (titled.Count == 1 && titled[0].Count() == widgets.Count))
+        {
+            return widgets.Count == 0 ? [] : [new SectionViewModel(null, widgets)];
+        }
+
+        var sections = new List<SectionViewModel>();
+        var loose = groups.Where(g => g.Count() < 2).SelectMany(g => g).ToList();
+        if (loose.Count > 0)
+        {
+            sections.Add(new SectionViewModel(null, loose));
+        }
+
+        foreach (var group in titled)
+        {
+            var first = group.First().Label;
+            var space = first.IndexOf(' ', StringComparison.Ordinal);
+            var header = space < 0 ? first : first[..space];
+            foreach (var widget in group)
+            {
+                var rest = widget.Label.Length > header.Length && widget.Label.StartsWith(header, StringComparison.OrdinalIgnoreCase)
+                    ? widget.Label[header.Length..].Trim()
+                    : widget.Label;
+                widget.DisplayLabel = rest.Length == 0 ? widget.Label : char.ToUpperInvariant(rest[0]) + rest[1..];
+            }
+
+            sections.Add(new SectionViewModel(header, group.ToList()));
+        }
+
+        return sections;
+    }
+
+    // ───────────────────────────── Favorites, history, counters ─────────────────────────────
 
     public void ToggleFavorite(WidgetViewModel widget)
     {
@@ -359,6 +508,14 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
                 History.RemoveAt(History.Count - 1);
             }
         });
+
+    private void OnToggleStateChanged(object? sender, EventArgs e)
+    {
+        if (sender is WidgetViewModel widget && _navByWidgetId.TryGetValue(widget.Id, out var nav))
+        {
+            nav.RefreshBadge();
+        }
+    }
 
     // ───────────────────────────── Presets ─────────────────────────────
 

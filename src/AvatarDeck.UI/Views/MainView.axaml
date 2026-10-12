@@ -1,6 +1,7 @@
 <!--
   The floating tablet. Designed for laser-pointer use: big targets, no scroll-wheel or joystick needed
   (scrolling works by dragging), and every action reachable in at most two clicks.
+  Edit mode (pencil, top right) turns every tile into an editor entry point.
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -12,238 +13,500 @@
              x:DataType="vm:MainViewModel"
              x:Name="Root">
 
+  <UserControl.Resources>
+    <!-- Edit-mode layer drawn on top of every tile: whole-tile click opens the editor; quick hide/show button. -->
+    <ControlTemplate x:Key="EditLayer" TargetType="ContentControl">
+      <Panel x:DataType="w:WidgetViewModel" IsVisible="{Binding IsEditMode}">
+        <Button Classes="editHit" Command="{Binding EditCommand}" />
+        <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6">
+          <Button Classes="mini" Classes.off="{Binding IsHidden}" Command="{Binding ToggleHiddenCommand}"
+                  ToolTip.Tip="Show / hide" Content="&#xE890;" />
+          <Button Classes="mini" Command="{Binding EditCommand}" ToolTip.Tip="Edit" Content="&#xE70F;" />
+        </StackPanel>
+        <Border Classes="hiddenBadge" IsVisible="{Binding IsHidden}" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10">
+          <TextBlock Text="Hidden" FontSize="11" />
+        </Border>
+      </Panel>
+    </ControlTemplate>
+  </UserControl.Resources>
+
   <UserControl.DataTemplates>
     <!-- Toggle -->
     <DataTemplate DataType="w:ToggleWidgetViewModel">
-      <ToggleButton Classes="tile" IsChecked="{Binding IsOn}">
-        <Grid RowDefinitions="*,Auto">
-          <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,28,0" />
-          <Button Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
-                  Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0" />
-          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
-            <TextBlock Classes="secondary" Text="{Binding Path}" />
-          </StackPanel>
-          <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE73E;" IsVisible="{Binding IsOn}" />
-        </Grid>
-      </ToggleButton>
+      <Panel Classes="tileHost" Classes.hiddenItem="{Binding IsHidden}">
+        <ToggleButton Classes="tile" IsChecked="{Binding IsOn}" IsHitTestVisible="{Binding !IsEditMode}">
+          <Grid RowDefinitions="*,Auto">
+            <TextBlock Text="{Binding DisplayLabel}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" Margin="0,0,28,0" />
+            <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Path}" IsVisible="{Binding ShowPath}" Margin="0,0,24,0" TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE73E;" IsVisible="{Binding IsOn}" />
+          </Grid>
+        </ToggleButton>
+        <Button Classes="icon star" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding !IsEditMode}"
+                Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0" />
+        <ContentControl Template="{StaticResource EditLayer}" />
+      </Panel>
     </DataTemplate>
 
     <!-- Button -->
     <DataTemplate DataType="w:ButtonWidgetViewModel">
-      <Button Classes="tile" Classes.pressed="{Binding IsPressed}" Command="{Binding PressCommand}">
-        <Grid RowDefinitions="*,Auto">
-          <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,28,0" />
-          <Button Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
-                  Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0" />
-          <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Path}" />
-          <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE768;" />
-        </Grid>
-      </Button>
+      <Panel Classes="tileHost" Classes.hiddenItem="{Binding IsHidden}">
+        <Button Classes="tile" Classes.pressed="{Binding IsPressed}" Command="{Binding PressCommand}" IsHitTestVisible="{Binding !IsEditMode}">
+          <Grid RowDefinitions="*,Auto">
+            <TextBlock Text="{Binding DisplayLabel}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" Margin="0,0,28,0" />
+            <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Path}" IsVisible="{Binding ShowPath}" Margin="0,0,24,0" TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE768;" />
+          </Grid>
+        </Button>
+        <Button Classes="icon star" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding !IsEditMode}"
+                Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0" />
+        <ContentControl Template="{StaticResource EditLayer}" />
+      </Panel>
     </DataTemplate>
 
     <!-- Slider (radial puppet replacement) -->
     <DataTemplate DataType="w:SliderWidgetViewModel">
-      <Border Classes="tile">
-        <Grid RowDefinitions="Auto,*,Auto">
-          <Grid ColumnDefinitions="*,Auto,Auto">
-            <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-            <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-            <Button Grid.Column="2" Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
-                    Content="&#xE734;" Margin="4,-8,-10,0" VerticalAlignment="Top" />
+      <Panel Classes="tileHost" Classes.hiddenItem="{Binding IsHidden}">
+        <Border Classes="tile">
+          <Grid RowDefinitions="Auto,*,Auto" IsHitTestVisible="{Binding !IsEditMode}">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{Binding DisplayLabel}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,6,0"
+                         ToolTip.Tip="{Binding Label}" />
+              <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
+                         VerticalAlignment="Center" Margin="0,0,30,0" />
+            </Grid>
+            <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}"
+                    TickFrequency="{Binding Step}" IsSnapToTickEnabled="{Binding SnapToStep}" VerticalAlignment="Center" />
+            <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" IsVisible="{Binding ShowPath}" TextTrimming="CharacterEllipsis" />
           </Grid>
-          <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}"
-                  TickFrequency="{Binding Step}" IsSnapToTickEnabled="{Binding SnapToStep}" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" />
-        </Grid>
-      </Border>
+        </Border>
+        <Button Classes="icon star" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding !IsEditMode}"
+                Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0" />
+        <ContentControl Template="{StaticResource EditLayer}" />
+      </Panel>
     </DataTemplate>
 
     <!-- Dropdown -->
     <DataTemplate DataType="w:DropdownWidgetViewModel">
-      <Border Classes="tile">
-        <Grid RowDefinitions="Auto,*,Auto">
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-            <Button Grid.Column="1" Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
-                    Content="&#xE734;" Margin="4,-8,-10,0" VerticalAlignment="Top" />
+      <Panel Classes="tileHost" Classes.hiddenItem="{Binding IsHidden}">
+        <Border Classes="tile">
+          <Grid RowDefinitions="Auto,*,Auto" IsHitTestVisible="{Binding !IsEditMode}">
+            <TextBlock Text="{Binding DisplayLabel}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,30,0" />
+            <ComboBox Grid.Row="1" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Center" CornerRadius="12" PlaceholderText="Choose…">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="m:DropdownOption">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" IsVisible="{Binding ShowPath}" TextTrimming="CharacterEllipsis" />
           </Grid>
-          <ComboBox Grid.Row="1" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}"
-                    HorizontalAlignment="Stretch" VerticalAlignment="Center" CornerRadius="12" PlaceholderText="Choose…">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="m:DropdownOption">
-                <TextBlock Text="{Binding Label}" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" />
-        </Grid>
-      </Border>
+        </Border>
+        <Button Classes="icon star" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}" IsVisible="{Binding !IsEditMode}"
+                Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0" />
+        <ContentControl Template="{StaticResource EditLayer}" />
+      </Panel>
     </DataTemplate>
 
     <!-- Two-axis puppet -->
     <DataTemplate DataType="w:TwoAxisWidgetViewModel">
-      <Border Classes="tile">
-        <StackPanel Spacing="2">
-          <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" />
-          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding X}" />
-          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Y}" />
-        </StackPanel>
-      </Border>
+      <Panel Classes="tileHost" Classes.hiddenItem="{Binding IsHidden}">
+        <Border Classes="tile">
+          <StackPanel Spacing="2" IsHitTestVisible="{Binding !IsEditMode}">
+            <TextBlock Text="{Binding DisplayLabel}" FontSize="17" FontWeight="SemiBold" />
+            <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding X}" />
+            <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Y}" />
+          </StackPanel>
+        </Border>
+        <ContentControl Template="{StaticResource EditLayer}" />
+      </Panel>
     </DataTemplate>
   </UserControl.DataTemplates>
 
   <Border Classes="glass">
-    <Grid ColumnDefinitions="220,*">
+    <Panel>
+      <Grid ColumnDefinitions="232,*">
 
-      <!-- ── Navigation rail (tabs) ── -->
-      <Border Background="{StaticResource RailBackgroundBrush}" BorderBrush="{StaticResource GlassStrokeBrush}" BorderThickness="0,0,1,0">
-        <DockPanel Margin="14,20,14,16">
-          <StackPanel DockPanel.Dock="Top" Margin="6,0,0,18" Spacing="2">
-            <TextBlock Text="AvatarDeck" FontSize="20" FontWeight="Bold" />
-            <Grid ColumnDefinitions="Auto,*,Auto">
-              <Ellipse Classes="status" Classes.connected="{Binding IsConnected}" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding StatusText}" Margin="8,0,0,0"
-                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-              <Button Grid.Column="2" Classes="icon" Content="&#xE72C;" FontSize="12" Padding="6" Margin="0,0,-6,0"
-                      ToolTip.Tip="Resync with VRChat" Command="{Binding SyncCommand}" />
-            </Grid>
-          </StackPanel>
+        <!-- ── Navigation rail (tabs) ── -->
+        <Border Background="{StaticResource RailBackgroundBrush}" BorderBrush="{StaticResource GlassStrokeBrush}" BorderThickness="0,0,1,0">
+          <DockPanel Margin="12,20,12,16">
+            <StackPanel DockPanel.Dock="Top" Margin="8,0,4,16" Spacing="2">
+              <TextBlock Text="AvatarDeck" FontSize="20" FontWeight="Bold" />
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Ellipse Classes="status" Classes.connected="{Binding IsConnected}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding StatusText}" Margin="8,0,0,0"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <Button Grid.Column="2" Classes="icon" Content="&#xE72C;" FontSize="12" Padding="6" Margin="0,0,-6,0"
+                        ToolTip.Tip="Resync with VRChat" Command="{Binding SyncCommand}" />
+              </Grid>
+            </StackPanel>
 
-          <StackPanel DockPanel.Dock="Bottom" Spacing="6">
-            <TextBlock Classes="secondary" Text="Avatar" Margin="6,0" />
-            <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                      HorizontalAlignment="Stretch" CornerRadius="14" PlaceholderText="Select avatar…">
-              <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="a:ProfileSummary">
-                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+            <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,10,0,0">
+              <!-- Edit-mode tools -->
+              <StackPanel Spacing="6" IsVisible="{Binding IsEditMode}">
+                <Button Classes="railAction" Command="{Binding NewFolderCommand}">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Classes="icon" Text="&#xE710;" />
+                    <TextBlock Text="New folder" />
+                  </StackPanel>
+                </Button>
+                <Button Classes="railAction" Classes.armed="{Binding IsReorganizeArmed}" Command="{Binding ReorganizeCommand}"
+                        ToolTip.Tip="Rebuild the layout automatically from the avatar's parameters (keeps favorites and presets)">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Classes="icon" Text="&#xE8CB;" />
+                    <TextBlock Text="Auto-organize" IsVisible="{Binding !IsReorganizeArmed}" />
+                    <TextBlock Text="Click again to reset" IsVisible="{Binding IsReorganizeArmed}" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+
+              <TextBlock Classes="secondary" Text="Avatar" Margin="8,4,0,0" />
+              <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                        HorizontalAlignment="Stretch" CornerRadius="14" PlaceholderText="Select avatar…">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="a:ProfileSummary">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+
+            <ListBox Classes="rail" ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:NavItemViewModel">
+                  <Grid ColumnDefinitions="Auto,*,Auto" Classes.dim="{Binding IsHiddenFolder}">
+                    <Border Classes="railIcon">
+                      <TextBlock Classes="icon" FontSize="15" Text="{Binding Glyph}" Foreground="{Binding AccentBrush}"
+                                 HorizontalAlignment="Center" />
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="15" FontWeight="Medium" Margin="12,0,6,0"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Border Grid.Column="2" Classes="badge" IsVisible="{Binding Badge, Converter={x:Static ObjectConverters.IsNotNull}}">
+                      <TextBlock Text="{Binding Badge}" FontSize="11" />
+                    </Border>
+                  </Grid>
                 </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-          </StackPanel>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
 
-          <ListBox Classes="rail" ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}">
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:NavItemViewModel">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock Classes="icon" FontSize="18" Text="{Binding Glyph}" />
-                  <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
+        <!-- ── Content ── -->
+        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="24,20,18,16">
+
+          <!-- Header: back, page icon + title, folder edit, search, edit mode -->
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto,280,Auto" Margin="0,0,0,12">
+            <Button Classes="icon" Content="&#xE72B;" FontSize="18" Command="{Binding GoUpCommand}"
+                    IsVisible="{Binding CanGoUp}" Margin="0,0,6,0" VerticalAlignment="Center" />
+            <Border Grid.Column="1" Classes="pageIcon" IsVisible="{Binding IsFolderPage}">
+              <TextBlock Classes="icon" FontSize="20" Text="{Binding PageGlyph}" Foreground="{Binding PageAccent}" HorizontalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="12,0,8,0">
+              <TextBlock Classes="title" Text="{Binding PageTitle}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="secondary" Text="{Binding AvatarName}" />
+            </StackPanel>
+            <Button Grid.Column="3" Classes="chip" Margin="0,0,10,0" VerticalAlignment="Center" Command="{Binding EditCurrentFolderCommand}">
+              <Button.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                  <Binding Path="IsEditMode" />
+                  <Binding Path="IsFolderPage" />
+                </MultiBinding>
+              </Button.IsVisible>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Classes="icon" Text="&#xE70F;" />
+                <TextBlock Text="Edit folder" />
+              </StackPanel>
+            </Button>
+            <TextBox Grid.Column="4" Classes="search" Text="{Binding SearchText}" Watermark="Search parameters…" VerticalAlignment="Center">
+              <TextBox.InnerLeftContent>
+                <TextBlock Classes="icon secondary" Text="&#xE721;" Margin="12,0,0,0" FontSize="14" />
+              </TextBox.InnerLeftContent>
+              <TextBox.InnerRightContent>
+                <Button Classes="icon" Content="&#xE711;" FontSize="11" Command="{Binding ClearSearchCommand}" IsVisible="{Binding IsSearching}" />
+              </TextBox.InnerRightContent>
+            </TextBox>
+            <ToggleButton Grid.Column="5" Classes="editToggle" IsChecked="{Binding IsEditMode}" Margin="10,0,0,0" VerticalAlignment="Center"
+                          ToolTip.Tip="Edit layout">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Classes="icon" Text="&#xE70F;" IsVisible="{Binding !IsEditMode}" />
+                <TextBlock Classes="icon" Text="&#xE73E;" IsVisible="{Binding IsEditMode}" />
+                <TextBlock Text="Done" IsVisible="{Binding IsEditMode}" />
+              </StackPanel>
+            </ToggleButton>
+          </Grid>
+
+          <!-- Edit-mode hint -->
+          <Border Grid.Row="1" Classes="editBanner" IsVisible="{Binding IsEditMode}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Classes="icon" Text="&#xE70F;" />
+              <TextBlock Text="Edit mode — click a control to rename, move or change it. Hidden items are dimmed." FontSize="13" />
+            </StackPanel>
+          </Border>
+
+          <!-- Sub-folders (pages) as chips -->
+          <ItemsControl Grid.Row="2" ItemsSource="{Binding SubFolders}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FolderViewModel">
+                <Button Classes="chip" Classes.dim="{Binding IsHidden}"
+                        Command="{Binding #Root.((vm:MainViewModel)DataContext).OpenFolderCommand}" CommandParameter="{Binding}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="icon" Text="{Binding Glyph}" Foreground="{Binding AccentBrush}" />
+                    <TextBlock Text="{Binding Name}" FontWeight="Medium" />
+                  </StackPanel>
+                </Button>
               </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </DockPanel>
-      </Border>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
 
-      <!-- ── Content ── -->
-      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="24,20,18,16">
-
-        <!-- Header: title + search -->
-        <Grid ColumnDefinitions="Auto,*,320" Margin="0,0,0,14">
-          <Button Classes="icon" Content="&#xE72B;" FontSize="18" Command="{Binding GoUpCommand}"
-                  IsVisible="{Binding CanGoUp}" Margin="0,0,8,0" VerticalAlignment="Center" />
-          <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <TextBlock Classes="title" Text="{Binding PageTitle}" TextTrimming="CharacterEllipsis" />
-            <TextBlock Classes="secondary" Text="{Binding AvatarName}" />
-          </StackPanel>
-          <TextBox Grid.Column="2" Classes="search" Text="{Binding SearchText}" Watermark="Search parameters…" VerticalAlignment="Center">
-            <TextBox.InnerLeftContent>
-              <TextBlock Classes="icon secondary" Text="&#xE721;" Margin="12,0,0,0" FontSize="14" />
-            </TextBox.InnerLeftContent>
-            <TextBox.InnerRightContent>
-              <Button Classes="icon" Content="&#xE711;" FontSize="11" Command="{Binding ClearSearchCommand}" IsVisible="{Binding IsSearching}" />
-            </TextBox.InnerRightContent>
-          </TextBox>
-        </Grid>
-
-        <!-- Sub-folders (pages) as chips -->
-        <ItemsControl Grid.Row="1" ItemsSource="{Binding SubFolders}">
-          <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-              <WrapPanel />
-            </ItemsPanelTemplate>
-          </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:FolderViewModel">
-              <Button Classes="chip" Command="{Binding #Root.((vm:MainViewModel)DataContext).OpenFolderCommand}" CommandParameter="{Binding}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBlock Classes="icon" Text="&#xE8B7;" />
-                  <TextBlock Text="{Binding Name}" FontWeight="Medium" />
+          <Panel Grid.Row="3">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsScrollInertiaEnabled="True">
+              <StackPanel>
+                <!-- Presets page -->
+                <StackPanel IsVisible="{Binding ShowPresets}" Spacing="12" Margin="6,0,6,12">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBox Classes="search" Text="{Binding NewPresetName}" Watermark="New preset name (Outfit 1, Casual, Public…)" />
+                    <Button Grid.Column="1" Classes="chip" Margin="8,0,0,0" Command="{Binding SavePresetCommand}">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="icon" Text="&#xE74E;" />
+                        <TextBlock Text="Save current state" />
+                      </StackPanel>
+                    </Button>
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding Presets}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:PresetViewModel">
+                        <Panel Classes="tileHost">
+                          <Button Classes="tile" Command="{Binding #Root.((vm:MainViewModel)DataContext).ApplyPresetCommand}" CommandParameter="{Binding}">
+                            <Grid RowDefinitions="*,Auto">
+                              <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" />
+                              <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Summary}" />
+                              <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE768;" />
+                            </Grid>
+                          </Button>
+                          <Button Classes="icon" Content="&#xE74D;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,6,0"
+                                  Command="{Binding #Root.((vm:MainViewModel)DataContext).DeletePresetCommand}" CommandParameter="{Binding}" />
+                        </Panel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                 </StackPanel>
-              </Button>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
 
-        <Panel Grid.Row="2">
-          <!-- Widget grid -->
-          <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsScrollInertiaEnabled="True">
-            <StackPanel>
-              <!-- Presets page -->
-              <StackPanel IsVisible="{Binding ShowPresets}" Spacing="12" Margin="6,0,6,12">
-                <Grid ColumnDefinitions="*,Auto" >
-                  <TextBox Classes="search" Text="{Binding NewPresetName}" Watermark="New preset name (Outfit 1, Casual, Public…)" />
-                  <Button Grid.Column="1" Classes="chip" Margin="8,0,0,0" Command="{Binding SavePresetCommand}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <TextBlock Classes="icon" Text="&#xE74E;" />
-                      <TextBlock Text="Save current state" />
-                    </StackPanel>
-                  </Button>
-                </Grid>
-                <ItemsControl ItemsSource="{Binding Presets}">
+                <!-- Widget sections -->
+                <ItemsControl ItemsSource="{Binding Sections}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:SectionViewModel">
+                      <StackPanel Margin="0,0,0,10">
+                        <TextBlock Classes="sectionHeader" Text="{Binding Header}" IsVisible="{Binding HasHeader}" />
+                        <ItemsControl ItemsSource="{Binding Widgets}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <WrapPanel />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ScrollViewer>
+
+            <!-- Empty state -->
+            <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+              <TextBlock Classes="icon" Text="&#xE734;" FontSize="40" HorizontalAlignment="Center" Opacity="0.5" />
+              <TextBlock Classes="secondary" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"
+                         Text="{Binding EmptyMessage}" />
+            </StackPanel>
+          </Panel>
+        </Grid>
+      </Grid>
+
+      <!-- ── Editor sheets (modal) ── -->
+      <Panel IsVisible="{Binding IsEditorOpen}">
+        <Button Classes="scrim" Command="{Binding CloseEditorCommand}" />
+
+        <!-- Control editor -->
+        <Border Classes="glass sheet" IsVisible="{Binding WidgetEditor, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <ScrollViewer DataContext="{Binding WidgetEditor}" x:DataType="vm:WidgetEditorViewModel">
+            <StackPanel Spacing="14" Margin="26,22">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="title" Text="Edit control" />
+                <Button Grid.Column="1" Classes="icon" Content="&#xE711;" Command="{Binding CloseCommand}" />
+              </Grid>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Name" />
+                <TextBox Classes="search" Text="{Binding Label}" />
+                <TextBlock Classes="secondary" Text="{Binding ParameterInfo}" />
+              </StackPanel>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Type" />
+                <ItemsControl ItemsSource="{Binding Kinds}">
                   <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                       <WrapPanel />
                     </ItemsPanelTemplate>
                   </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:PresetViewModel">
-                      <Button Classes="tile" Margin="0,0,12,12"
-                              Command="{Binding #Root.((vm:MainViewModel)DataContext).ApplyPresetCommand}" CommandParameter="{Binding}">
-                        <Grid RowDefinitions="*,Auto">
-                          <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" />
-                          <Button Classes="icon" Content="&#xE74D;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0"
-                                  Command="{Binding #Root.((vm:MainViewModel)DataContext).DeletePresetCommand}" CommandParameter="{Binding}" />
-                          <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Summary}" />
-                          <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE768;" />
-                        </Grid>
+                    <DataTemplate x:DataType="vm:ChoiceViewModel">
+                      <Button Classes="chip" Classes.selected="{Binding IsSelected}" Content="{Binding Display}"
+                              Command="{Binding $parent[ItemsControl].((vm:WidgetEditorViewModel)DataContext).SetKindCommand}" CommandParameter="{Binding}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Visible" />
+                  <ToggleSwitch IsChecked="{Binding IsShown}" OnContent="Shown" OffContent="Hidden" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Order" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="chip" Command="{Binding MoveUpCommand}"><TextBlock Classes="icon" Text="&#xE76B;" /></Button>
+                    <Button Classes="chip" Command="{Binding MoveDownCommand}"><TextBlock Classes="icon" Text="&#xE76C;" /></Button>
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Move to folder" />
+                <ItemsControl ItemsSource="{Binding Folders}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FolderChoiceViewModel">
+                      <Button Classes="chip" Command="{Binding $parent[ItemsControl].((vm:WidgetEditorViewModel)DataContext).MoveToCommand}" CommandParameter="{Binding}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Classes="icon" Text="{Binding Glyph}" Foreground="{Binding AccentBrush}" />
+                          <TextBlock Text="{Binding Path}" />
+                        </StackPanel>
                       </Button>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </StackPanel>
 
-              <ItemsControl ItemsSource="{Binding VisibleWidgets}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-              </ItemsControl>
+              <Button Classes="primary" Content="Done" Command="{Binding CloseCommand}" HorizontalAlignment="Right" />
             </StackPanel>
           </ScrollViewer>
+        </Border>
 
-          <!-- Empty state -->
-          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-            <TextBlock Classes="icon" Text="&#xE734;" FontSize="40" HorizontalAlignment="Center" Opacity="0.5" />
-            <TextBlock Classes="secondary" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"
-                       Text="Nothing here yet.&#x0a;Star a control to add it to Favorites." />
-          </StackPanel>
+        <!-- Folder editor -->
+        <Border Classes="glass sheet" IsVisible="{Binding FolderEditor, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <ScrollViewer DataContext="{Binding FolderEditor}" x:DataType="vm:FolderEditorViewModel">
+            <StackPanel Spacing="14" Margin="26,22">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="title" Text="Edit folder" />
+                <Button Grid.Column="1" Classes="icon" Content="&#xE711;" Command="{Binding CloseCommand}" />
+              </Grid>
 
-          <!-- Toasts -->
-          <ItemsControl ItemsSource="{Binding Toasts}" HorizontalAlignment="Center" VerticalAlignment="Bottom" IsHitTestVisible="False">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:ToastViewModel">
-                <Border Classes="toast">
-                  <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Classes="icon" Text="{Binding Glyph}" Foreground="{StaticResource AccentBrush}" />
-                    <TextBlock Text="{Binding Message}" />
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Name" />
+                <TextBox Classes="search" Text="{Binding Name}" />
+              </StackPanel>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Icon" />
+                <ItemsControl ItemsSource="{Binding IconChoices}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ChoiceViewModel">
+                      <Button Classes="swatch" Classes.selected="{Binding IsSelected}"
+                              Command="{Binding $parent[ItemsControl].((vm:FolderEditorViewModel)DataContext).SetIconCommand}" CommandParameter="{Binding}">
+                        <TextBlock Classes="icon" FontSize="18" Text="{Binding Display}" HorizontalAlignment="Center" />
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Color" />
+                <ItemsControl ItemsSource="{Binding ColorChoices}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ChoiceViewModel">
+                      <Button Classes="swatch" Classes.selected="{Binding IsSelected}"
+                              Command="{Binding $parent[ItemsControl].((vm:FolderEditorViewModel)DataContext).SetColorCommand}" CommandParameter="{Binding}">
+                        <Ellipse Width="22" Height="22" Fill="{Binding Brush}" />
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Visible" />
+                  <ToggleSwitch IsChecked="{Binding IsShown}" OnContent="Shown" OffContent="Hidden" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Order" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="chip" Command="{Binding MoveUpCommand}"><TextBlock Classes="icon" Text="&#xE70E;" /></Button>
+                    <Button Classes="chip" Command="{Binding MoveDownCommand}"><TextBlock Classes="icon" Text="&#xE70D;" /></Button>
                   </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </Panel>
-      </Grid>
-    </Grid>
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="Auto,Auto,*">
+                <Button Classes="chip" Command="{Binding AddSubfolderCommand}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="icon" Text="&#xE710;" />
+                    <TextBlock Text="Add page" />
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="1" Classes="chip danger" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}"
+                        ToolTip.Tip="Only empty folders can be deleted">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="icon" Text="&#xE74D;" />
+                    <TextBlock Text="Delete" />
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="2" Classes="primary" Content="Done" Command="{Binding CloseCommand}" HorizontalAlignment="Right" />
+              </Grid>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Panel>
+
+      <!-- Toasts -->
+      <ItemsControl ItemsSource="{Binding Toasts}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,18" IsHitTestVisible="False">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ToastViewModel">
+            <Border Classes="toast">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Classes="icon" Text="{Binding Glyph}" Foreground="{StaticResource AccentBrush}" />
+                <TextBlock Text="{Binding Message}" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Panel>
   </Border>
 </UserControl>

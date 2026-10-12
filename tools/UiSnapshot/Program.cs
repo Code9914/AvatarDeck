@@ -58,14 +58,22 @@ Console.WriteLine($"init completed={init.IsCompleted} nav={vm.NavItems.Count} av
 
 if (live)
 {
-    Snap("live-01");
-    vm.SelectedNav = vm.NavItems.ElementAtOrDefault(1) ?? vm.SelectedNav;
-    if (vm.CurrentFolder is { Widgets.Count: 0, Children.Count: > 0 } folder)
+    // Tour of the real avatar: every folder, then edit mode and both editor sheets.
+    var folders = vm.NavItems.Where(n => n.Kind == NavKind.Folder).ToList();
+    for (var i = 0; i < folders.Count; i++)
     {
-        vm.CurrentFolder = folder.Children[0]; // e.g. "A3C › Toggle"
+        vm.SelectedNav = folders[i];
+        Snap($"live-{i + 1:00}-{string.Concat(folders[i].Title.Where(char.IsLetterOrDigit))}");
     }
 
-    Snap("live-02");
+    vm.SelectedNav = folders.FirstOrDefault();
+    vm.IsEditMode = true;
+    Snap("live-edit-mode");
+    vm.EditWidget(vm.Sections.SelectMany(s => s.Widgets).First());
+    Snap("live-edit-widget");
+    vm.CloseEditors();
+    vm.EditCurrentFolderCommand.Execute(null);
+    Snap("live-edit-folder");
     return;
 }
 
@@ -79,7 +87,7 @@ void Snap(string name)
 }
 
 // Favorites with some live state.
-foreach (var widget in vm.VisibleWidgets)
+foreach (var widget in vm.Sections.SelectMany(s => s.Widgets))
 {
     switch (widget)
     {

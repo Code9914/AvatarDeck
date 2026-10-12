@@ -66,8 +66,16 @@ One JSON file per avatar in `%AppData%\AvatarDeck\avatars\{avatarId}.json`
 ```
 
 When VRChat reports a new avatar, AvatarDeck loads its profile, or generates one automatically from the
-OSC config VRChat writes in `%LocalAppData%Low\VRChat\VRChat\OSC`. Parameters named `Folder/Name`
-(VRCFury / Modular Avatar style) are grouped into folders.
+live parameter list (OSCQuery) or the OSC config VRChat writes in `%LocalAppData%Low\VRChat\VRChat\OSC`.
+
+Auto-organisation: `Folder/Name` paths become folders (VRCFury `VF123_` prefixes removed), flat VRCFury prefab
+parameters go to "Extras", VRCFury internals (local copies, compressor, version markers) are dropped, and
+GoGo Loco / tracking / smoothing parameters go to a hidden "System" folder. Inside a page, controls are grouped
+into sections by their first word (Hair → Hue, Swap).
+
+**Edit mode** (pencil, top right): click any control to rename it, change its type (toggle / button / slider),
+hide it, reorder it or move it to another folder; edit folders (name, icon, color, visibility, order, pages);
+"Auto-organize" rebuilds the layout from scratch (favorites and presets are kept). Everything is laser-friendly.
 
 ## Architecture
 

@@ -11,12 +11,17 @@ public sealed partial class ToggleWidgetViewModel(ToggleWidget model, IWidgetHos
     [ObservableProperty]
     private bool _isOn;
 
+    /// <summary>Raised whenever the on/off state changes (local or remote), for folder counters.</summary>
+    public event EventHandler? StateChanged;
+
     partial void OnIsOnChanged(bool value)
     {
         if (!IsApplyingRemote)
         {
             SendDiscrete(Parameter, value ? model.OnValue : model.OffValue);
         }
+
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnRemoteValue(string parameter, OscValue value) =>

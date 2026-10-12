@@ -87,6 +87,14 @@ public sealed class ProfileManager : IDisposable
 
                 await _store.SaveAsync(profile, cancellationToken).ConfigureAwait(false);
             }
+            else if (definition is not null && profile.Source != ProfileSource.Manual && !profile.IsCustomized
+                     && profile.GeneratorVersion < ProfileBuilder.GeneratorVersion)
+            {
+                // Generated layout never touched by the user: upgrade it to the improved organisation rules.
+                profile = ProfileBuilder.Reorganize(profile, definition);
+                await _store.SaveAsync(profile, cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("Re-organised profile {AvatarId} with generator v{Version}", avatarId, ProfileBuilder.GeneratorVersion);
+            }
             else if (definition is not null)
             {
                 var added = ProfileBuilder.MergeMissing(profile, definition);
@@ -112,6 +120,38 @@ public sealed class ProfileManager : IDisposable
         }
 
         ActiveProfileChanged?.Invoke(this, ActiveProfile);
+    }
+
+    /// <summary>
+    /// Rebuilds the active profile's layout with the automatic rules (keeps presets and favorites).
+    /// </summary>
+    /// <returns>False when no parameter list is available (VRChat not reachable and no OSC config).</returns>
+    public async Task<bool> ReorganizeActiveAsync(CancellationToken cancellationToken = default)
+    {
+        if (ActiveProfile is not { } current)
+        {
+            return false;
+        }
+
+        var definition = await FindDefinitionAsync(current.AvatarId, cancellationToken).ConfigureAwait(false);
+        if (definition is null)
+        {
+            return false;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ActiveProfile = ProfileBuilder.Reorganize(current, definition);
+            await _store.SaveAsync(ActiveProfile, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        ActiveProfileChanged?.Invoke(this, ActiveProfile);
+        return true;
     }
 
     /// <summary>Persists the active profile (call after user edits; callers should debounce).</summary>

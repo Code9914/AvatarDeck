@@ -13,8 +13,14 @@ public interface IWidgetHost
 
     void ToggleFavorite(WidgetViewModel widget);
 
-    /// <summary>Records a user action (history) and reports send failures.</summary>
+    /// <summary>Records a user action (history) and refreshes counters.</summary>
     void OnUserAction(WidgetViewModel widget, OscValue value);
+
+    /// <summary>Opens the editor sheet for a widget (edit mode).</summary>
+    void EditWidget(WidgetViewModel widget);
+
+    /// <summary>Shows or hides a widget (edit mode).</summary>
+    void ToggleHidden(WidgetViewModel widget);
 }
 
 /// <summary>
@@ -29,6 +35,7 @@ public abstract partial class WidgetViewModel : ObservableObject
     {
         Model = model;
         Host = host;
+        _displayLabel = model.Label;
     }
 
     public WidgetBase Model { get; }
@@ -41,14 +48,34 @@ public abstract partial class WidgetViewModel : ObservableObject
 
     public string Parameter => Model.Parameter;
 
+    public bool IsHidden => Model.Hidden;
+
     /// <summary>Folder path shown in search results ("Clothes › Hoodie").</summary>
     public string Path { get; init; } = string.Empty;
+
+    /// <summary>Label as shown on the tile (without the section word: "Hair Hue" in section "Hair" → "Hue").</summary>
+    [ObservableProperty]
+    private string _displayLabel;
+
+    /// <summary>Show the folder path under the label (search results, favorites).</summary>
+    [ObservableProperty]
+    private bool _showPath;
 
     [ObservableProperty]
     private bool _isFavorite;
 
+    /// <summary>In edit mode a click opens the editor instead of changing the value.</summary>
+    [ObservableProperty]
+    private bool _isEditMode;
+
     [RelayCommand]
     private void ToggleFavorite() => Host.ToggleFavorite(this);
+
+    [RelayCommand]
+    private void Edit() => Host.EditWidget(this);
+
+    [RelayCommand]
+    private void ToggleHidden() => Host.ToggleHidden(this);
 
     /// <summary>Updates the UI from a value reported by VRChat.</summary>
     public void ApplyRemoteValue(string parameter, OscValue value)

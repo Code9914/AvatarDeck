@@ -53,6 +53,8 @@ public class ProfileBuilderTests
     [InlineData("hair_hue", "Hair hue")]
     [InlineData("NSFW", "NSFW")]
     [InlineData("Toggle-Wings", "Toggle Wings")]
+    [InlineData("bit0", "Bit 0")]
+    [InlineData("A3C", "A3C")]
     public void Humanizes_names(string input, string expected) => ProfileBuilder.Humanize(input).Should().Be(expected);
 
     [Fact]

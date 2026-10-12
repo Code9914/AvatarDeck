@@ -25,6 +25,9 @@ public abstract class WidgetBase
     /// <summary>Target avatar parameter name (without the <c>/avatar/parameters/</c> prefix).</summary>
     public string Parameter { get; set; } = string.Empty;
 
+    /// <summary>Hidden widgets are only shown in edit mode.</summary>
+    public bool Hidden { get; set; }
+
     /// <summary>Type of the target parameter. Values are converted to it before being sent.</summary>
     public ParameterType ParameterType { get; set; } = ParameterType.Bool;
 
