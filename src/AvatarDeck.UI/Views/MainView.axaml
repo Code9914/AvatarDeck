@@ -1,0 +1,249 @@
+<!--
+  The floating tablet. Designed for laser-pointer use: big targets, no scroll-wheel or joystick needed
+  (scrolling works by dragging), and every action reachable in at most two clicks.
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AvatarDeck.UI.ViewModels"
+             xmlns:w="using:AvatarDeck.UI.ViewModels.Widgets"
+             xmlns:m="using:AvatarDeck.Core.Models"
+             xmlns:a="using:AvatarDeck.Core.Abstractions"
+             x:Class="AvatarDeck.UI.Views.MainView"
+             x:DataType="vm:MainViewModel"
+             x:Name="Root">
+
+  <UserControl.DataTemplates>
+    <!-- Toggle -->
+    <DataTemplate DataType="w:ToggleWidgetViewModel">
+      <ToggleButton Classes="tile" IsChecked="{Binding IsOn}">
+        <Grid RowDefinitions="*,Auto">
+          <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,28,0" />
+          <Button Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
+                  Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0" />
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
+            <TextBlock Classes="secondary" Text="{Binding Path}" />
+          </StackPanel>
+          <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE73E;" IsVisible="{Binding IsOn}" />
+        </Grid>
+      </ToggleButton>
+    </DataTemplate>
+
+    <!-- Button -->
+    <DataTemplate DataType="w:ButtonWidgetViewModel">
+      <Button Classes="tile" Classes.pressed="{Binding IsPressed}" Command="{Binding PressCommand}">
+        <Grid RowDefinitions="*,Auto">
+          <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,28,0" />
+          <Button Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
+                  Content="&#xE734;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0" />
+          <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Path}" />
+          <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE768;" />
+        </Grid>
+      </Button>
+    </DataTemplate>
+
+    <!-- Slider (radial puppet replacement) -->
+    <DataTemplate DataType="w:SliderWidgetViewModel">
+      <Border Classes="tile">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
+                    Content="&#xE734;" Margin="4,-8,-10,0" VerticalAlignment="Top" />
+          </Grid>
+          <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}"
+                  TickFrequency="{Binding Step}" IsSnapToTickEnabled="{Binding SnapToStep}" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+
+    <!-- Dropdown -->
+    <DataTemplate DataType="w:DropdownWidgetViewModel">
+      <Border Classes="tile">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <Button Grid.Column="1" Classes="icon" Classes.on="{Binding IsFavorite}" Command="{Binding ToggleFavoriteCommand}"
+                    Content="&#xE734;" Margin="4,-8,-10,0" VerticalAlignment="Top" />
+          </Grid>
+          <ComboBox Grid.Row="1" ItemsSource="{Binding Options}" SelectedItem="{Binding SelectedOption}"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Center" CornerRadius="12" PlaceholderText="Choose…">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="m:DropdownOption">
+                <TextBlock Text="{Binding Label}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+
+    <!-- Two-axis puppet -->
+    <DataTemplate DataType="w:TwoAxisWidgetViewModel">
+      <Border Classes="tile">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding Label}" FontSize="17" FontWeight="SemiBold" />
+          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding X}" />
+          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Y}" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Border Classes="glass">
+    <Grid ColumnDefinitions="220,*">
+
+      <!-- ── Navigation rail (tabs) ── -->
+      <Border Background="{StaticResource RailBackgroundBrush}" BorderBrush="{StaticResource GlassStrokeBrush}" BorderThickness="0,0,1,0">
+        <DockPanel Margin="14,20,14,16">
+          <StackPanel DockPanel.Dock="Top" Margin="6,0,0,18" Spacing="2">
+            <TextBlock Text="AvatarDeck" FontSize="20" FontWeight="Bold" />
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Ellipse Classes="status" Classes.connected="{Binding IsConnected}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding StatusText}" Margin="8,0,0,0"
+                         VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+              <Button Grid.Column="2" Classes="icon" Content="&#xE72C;" FontSize="12" Padding="6" Margin="0,0,-6,0"
+                      ToolTip.Tip="Resync with VRChat" Command="{Binding SyncCommand}" />
+            </Grid>
+          </StackPanel>
+
+          <StackPanel DockPanel.Dock="Bottom" Spacing="6">
+            <TextBlock Classes="secondary" Text="Avatar" Margin="6,0" />
+            <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                      HorizontalAlignment="Stretch" CornerRadius="14" PlaceholderText="Select avatar…">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="a:ProfileSummary">
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+
+          <ListBox Classes="rail" ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:NavItemViewModel">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Classes="icon" FontSize="18" Text="{Binding Glyph}" />
+                  <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </DockPanel>
+      </Border>
+
+      <!-- ── Content ── -->
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="24,20,18,16">
+
+        <!-- Header: title + search -->
+        <Grid ColumnDefinitions="Auto,*,320" Margin="0,0,0,14">
+          <Button Classes="icon" Content="&#xE72B;" FontSize="18" Command="{Binding GoUpCommand}"
+                  IsVisible="{Binding CanGoUp}" Margin="0,0,8,0" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <TextBlock Classes="title" Text="{Binding PageTitle}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="secondary" Text="{Binding AvatarName}" />
+          </StackPanel>
+          <TextBox Grid.Column="2" Classes="search" Text="{Binding SearchText}" Watermark="Search parameters…" VerticalAlignment="Center">
+            <TextBox.InnerLeftContent>
+              <TextBlock Classes="icon secondary" Text="&#xE721;" Margin="12,0,0,0" FontSize="14" />
+            </TextBox.InnerLeftContent>
+            <TextBox.InnerRightContent>
+              <Button Classes="icon" Content="&#xE711;" FontSize="11" Command="{Binding ClearSearchCommand}" IsVisible="{Binding IsSearching}" />
+            </TextBox.InnerRightContent>
+          </TextBox>
+        </Grid>
+
+        <!-- Sub-folders (pages) as chips -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding SubFolders}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:FolderViewModel">
+              <Button Classes="chip" Command="{Binding #Root.((vm:MainViewModel)DataContext).OpenFolderCommand}" CommandParameter="{Binding}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Classes="icon" Text="&#xE8B7;" />
+                  <TextBlock Text="{Binding Name}" FontWeight="Medium" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Panel Grid.Row="2">
+          <!-- Widget grid -->
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsScrollInertiaEnabled="True">
+            <StackPanel>
+              <!-- Presets page -->
+              <StackPanel IsVisible="{Binding ShowPresets}" Spacing="12" Margin="6,0,6,12">
+                <Grid ColumnDefinitions="*,Auto" >
+                  <TextBox Classes="search" Text="{Binding NewPresetName}" Watermark="New preset name (Outfit 1, Casual, Public…)" />
+                  <Button Grid.Column="1" Classes="chip" Margin="8,0,0,0" Command="{Binding SavePresetCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Classes="icon" Text="&#xE74E;" />
+                      <TextBlock Text="Save current state" />
+                    </StackPanel>
+                  </Button>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Presets}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PresetViewModel">
+                      <Button Classes="tile" Margin="0,0,12,12"
+                              Command="{Binding #Root.((vm:MainViewModel)DataContext).ApplyPresetCommand}" CommandParameter="{Binding}">
+                        <Grid RowDefinitions="*,Auto">
+                          <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" />
+                          <Button Classes="icon" Content="&#xE74D;" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-8,-10,0"
+                                  Command="{Binding #Root.((vm:MainViewModel)DataContext).DeletePresetCommand}" CommandParameter="{Binding}" />
+                          <TextBlock Grid.Row="1" Classes="secondary" Text="{Binding Summary}" />
+                          <TextBlock Grid.Row="1" Classes="icon" FontSize="18" HorizontalAlignment="Right" Text="&#xE768;" />
+                        </Grid>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <ItemsControl ItemsSource="{Binding VisibleWidgets}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Empty state -->
+          <StackPanel IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+            <TextBlock Classes="icon" Text="&#xE734;" FontSize="40" HorizontalAlignment="Center" Opacity="0.5" />
+            <TextBlock Classes="secondary" FontSize="14" HorizontalAlignment="Center" TextAlignment="Center"
+                       Text="Nothing here yet.&#x0a;Star a control to add it to Favorites." />
+          </StackPanel>
+
+          <!-- Toasts -->
+          <ItemsControl ItemsSource="{Binding Toasts}" HorizontalAlignment="Center" VerticalAlignment="Bottom" IsHitTestVisible="False">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ToastViewModel">
+                <Border Classes="toast">
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Classes="icon" Text="{Binding Glyph}" Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="{Binding Message}" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Panel>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

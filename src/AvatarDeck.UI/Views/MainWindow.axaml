@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:AvatarDeck.UI.Views"
+        xmlns:vm="using:AvatarDeck.UI.ViewModels"
+        x:Class="AvatarDeck.UI.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="AvatarDeck"
+        Width="1100" Height="760" MinWidth="720" MinHeight="480"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur, Blur, None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40"
+        WindowStartupLocation="CenterScreen">
+  <!-- The desktop window hosts the exact same MainView that is rendered into the VR overlay. -->
+  <Panel>
+    <ExperimentalAcrylicBorder IsHitTestVisible="False">
+      <ExperimentalAcrylicBorder.Material>
+        <ExperimentalAcrylicMaterial BackgroundSource="Digger" TintColor="#0B0D14" TintOpacity="0.85" MaterialOpacity="0.7" />
+      </ExperimentalAcrylicBorder.Material>
+    </ExperimentalAcrylicBorder>
+    <v:MainView Margin="12,40,12,12" />
+  </Panel>
+</Window>

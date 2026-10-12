@@ -1,0 +1,14 @@
+{
+  "id": "avtr_fixture",
+  "name": "Fixture Fox",
+  "parameters": [
+    { "name": "VelocityX", "output": { "address": "/avatar/parameters/VelocityX", "type": "Float" } },
+    { "name": "VRCEmote", "input": { "address": "/avatar/parameters/VRCEmote", "type": "Int" }, "output": { "address": "/avatar/parameters/VRCEmote", "type": "Int" } },
+    { "name": "Clothes/Hoodie", "input": { "address": "/avatar/parameters/Clothes/Hoodie", "type": "Bool" }, "output": { "address": "/avatar/parameters/Clothes/Hoodie", "type": "Bool" } },
+    { "name": "Clothes/Jacket", "input": { "address": "/avatar/parameters/Clothes/Jacket", "type": "Bool" }, "output": { "address": "/avatar/parameters/Clothes/Jacket", "type": "Bool" } },
+    { "name": "Body/Tail", "input": { "address": "/avatar/parameters/Body/Tail", "type": "Bool" }, "output": { "address": "/avatar/parameters/Body/Tail", "type": "Bool" } },
+    { "name": "HairHue", "input": { "address": "/avatar/parameters/HairHue", "type": "Float" }, "output": { "address": "/avatar/parameters/HairHue", "type": "Float" } },
+    { "name": "Outfit", "input": { "address": "/avatar/parameters/Outfit", "type": "Int" }, "output": { "address": "/avatar/parameters/Outfit", "type": "Int" } },
+    { "name": "Tail_IsGrabbed", "input": { "address": "/avatar/parameters/Tail_IsGrabbed", "type": "Bool" }, "output": { "address": "/avatar/parameters/Tail_IsGrabbed", "type": "Bool" } }
+  ]
+}

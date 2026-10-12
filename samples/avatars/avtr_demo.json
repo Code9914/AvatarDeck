@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "avatarId": "avtr_demo",
+  "name": "Demo Fox",
+  "source": "Manual",
+  "folders": [
+    {
+      "id": "clothes",
+      "name": "Clothes",
+      "widgets": [
+        { "kind": "toggle", "id": "hoodie", "label": "Hoodie", "parameter": "Hoodie", "parameterType": "Bool", "onValue": true, "offValue": false },
+        { "kind": "toggle", "id": "jacket", "label": "Jacket", "parameter": "Jacket", "parameterType": "Bool", "onValue": true, "offValue": false },
+        { "kind": "toggle", "id": "gloves", "label": "Gloves", "parameter": "Gloves", "parameterType": "Bool", "onValue": true, "offValue": false },
+        {
+          "kind": "dropdown", "id": "outfit", "label": "Outfit", "parameter": "Outfit", "parameterType": "Int",
+          "options": [ { "label": "Default", "value": 0 }, { "label": "Casual", "value": 1 }, { "label": "Formal", "value": 2 } ]
+        }
+      ],
+      "children": [
+        {
+          "id": "shoes",
+          "name": "Shoes",
+          "widgets": [
+            { "kind": "toggle", "id": "boots", "label": "Boots", "parameter": "Boots", "parameterType": "Bool", "onValue": true, "offValue": false }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "body",
+      "name": "Body",
+      "widgets": [
+        { "kind": "toggle", "id": "tail", "label": "Tail", "parameter": "Tail", "parameterType": "Bool", "onValue": true, "offValue": false },
+        { "kind": "toggle", "id": "wings", "label": "Wings", "parameter": "Wings", "parameterType": "Bool", "onValue": true, "offValue": false },
+        { "kind": "toggle", "id": "ears", "label": "Ears", "parameter": "Ears", "parameterType": "Bool", "onValue": true, "offValue": false },
+        { "kind": "slider", "id": "scale", "label": "Tail Size", "parameter": "TailSize", "parameterType": "Float", "minimum": 0, "maximum": 1, "step": 0 }
+      ],
+      "children": []
+    },
+    {
+      "id": "face",
+      "name": "Face",
+      "widgets": [
+        { "kind": "toggle", "id": "glasses", "label": "Glasses", "parameter": "Glasses", "parameterType": "Bool", "onValue": true, "offValue": false },
+        { "kind": "slider", "id": "hairhue", "label": "Hair Hue", "parameter": "HairHue", "parameterType": "Float", "minimum": 0, "maximum": 1, "step": 0 },
+        { "kind": "slider", "id": "eyes", "label": "Eye Color", "parameter": "EyeColor", "parameterType": "Int", "minimum": 0, "maximum": 7, "step": 1 },
+        { "kind": "button", "id": "blush", "label": "Blush", "parameter": "Blush", "parameterType": "Bool", "pressValue": true, "releaseValue": false, "holdMilliseconds": 1500 }
+      ],
+      "children": []
+    }
+  ],
+  "presets": [
+    {
+      "id": "casual",
+      "name": "Casual",
+      "values": [
+        { "parameter": "Hoodie", "value": true },
+        { "parameter": "Jacket", "value": false },
+        { "parameter": "Outfit", "value": 1 },
+        { "parameter": "HairHue", "value": 0.75 }
+      ]
+    },
+    {
+      "id": "public",
+      "name": "Public",
+      "values": [
+        { "parameter": "Hoodie", "value": true },
+        { "parameter": "Jacket", "value": true },
+        { "parameter": "Gloves", "value": true }
+      ]
+    }
+  ],
+  "favorites": [ "hoodie", "hairhue", "tail" ],
+  "layout": { "columns": 3 },
+  "updatedAt": "2026-10-12T00:00:00+00:00"
+}
