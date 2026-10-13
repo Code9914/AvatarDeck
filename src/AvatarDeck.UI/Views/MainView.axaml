@@ -596,9 +596,14 @@
                 </StackPanel>
               </Grid>
 
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Start with SteamVR" />
+                <ToggleSwitch IsChecked="{Binding StartWithSteamVr}" OnContent="AvatarDeck opens in the background when SteamVR starts" OffContent="Start AvatarDeck yourself" />
+              </StackPanel>
+
               <Border Classes="editBanner" Margin="0">
                 <TextBlock TextWrapping="Wrap" FontSize="13"
-                           Text="Point with either controller · Trigger: click · Drag up/down: scroll · Grip: move the panel · Both grips: resize · Wrist button (left hand) or double-press left B: show / hide. Controls can be rebound in SteamVR › Controller bindings › AvatarDeck." />
+                           Text="Point with either controller · Trigger: click · Trigger + drag up/down: scroll · Trigger on the bar under the panel: move it (other trigger at the same time: resize) · Wrist button or double-press left B: show / hide. Controls can be rebound in SteamVR › Controller bindings › AvatarDeck." />
               </Border>
 
               <Button Classes="primary" Content="Done" Command="{Binding CloseCommand}" HorizontalAlignment="Right" />

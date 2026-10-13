@@ -5,6 +5,7 @@
         x:Class="AvatarDeck.UI.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="AvatarDeck"
+        Icon="avares://AvatarDeck.UI/Assets/avatardeck.ico"
         Width="1100" Height="760" MinWidth="720" MinHeight="480"
         Background="Transparent"
         TransparencyLevelHint="AcrylicBlur, Blur, None"

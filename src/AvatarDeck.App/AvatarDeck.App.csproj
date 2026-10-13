@@ -4,6 +4,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <AssemblyName>AvatarDeck</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\AvatarDeck.UI\Assets\avatardeck.ico</ApplicationIcon>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!-- Footprint: smaller working set, faster startup -->
     <TieredPGO>true</TieredPGO>
@@ -23,8 +24,12 @@
     <PackageReference Include="Serilog.Extensions.Hosting" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- SteamVR registration: published builds only, so a development build never replaces the installed app in SteamVR. -->
+    <None Update="avatardeck.vrmanifest" CopyToOutputDirectory="Never" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="avatardeck.png" CopyToOutputDirectory="Never" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -14,11 +14,29 @@ Point, click, done: no joystick needed.
 | 2 | OSC codec, UDP transport, VRChat client, avatar change detection, full-state sync (OSCQuery) | ✅ |
 | 3 | Domain model, JSON profiles, auto-generation from VRChat OSC config | ✅ |
 | 4 | Tablet UI: tabs, folders/pages, search, favorites, presets, toasts | ✅ first version |
-| 5 | SteamVR overlay (offscreen render → D3D11 → `IVROverlay`) | ✅ needs in-headset validation |
-| 6 | Laser pointer, trigger click, drag-scroll, grab/move/resize, lock, opacity, wrist button | ✅ needs in-headset validation |
+| 5 | SteamVR overlay (offscreen render → D3D11 → `IVROverlay`) | ✅ |
+| 6 | Laser pointer, trigger click, drag-scroll, grab/move/resize, lock, opacity, wrist button | ✅ |
 | 7 | Unity project importer (Expression Parameters / Menus) | ⏳ |
 | 8 | Macros, hotkeys, local API, MIDI, Stream Deck, plugins, themes, import/export | ⏳ |
-| 9 | Footprint tuning (< 100 MB, < 1 % CPU idle), installer, SteamVR auto-start | ⏳ |
+| 9 | Footprint tuning (< 100 MB, < 1 % CPU idle), installer, SteamVR auto-start, tray | ✅ |
+
+## Install
+
+Run `AvatarDeck-win-Setup.exe` (built with `./build/pack.ps1`, see below). It installs per user — no admin rights,
+no .NET install needed — into `%LocalAppData%\AvatarDeck`, adds Start menu and desktop shortcuts, and starts the app.
+
+- **Start with SteamVR**: the first time AvatarDeck sees SteamVR it registers itself (`avatardeck.vrmanifest`) and
+  turns on auto-start. From then on SteamVR launches it in the background and it quits with SteamVR. Toggle it in
+  "VR panel" settings, the tray menu, or SteamVR › Settings › Startup / Shutdown › Choose startup overlay apps.
+- **Notification area**: closing the window keeps AvatarDeck running (VR panel included). Tray icon: click = open,
+  right-click = VR panel, Start with SteamVR, Quit. Launching it again only brings the running instance forward.
+- **Updates**: installed builds check the GitHub releases 30 s after start, download in the background and install
+  when you quit (silently skipped if there is no release or no network).
+
+Footprint (Release, i7 desktop, avatar with 350 parameters): ~24 MB in the background, ~47 MB private / 115 MB
+working set with the desktop window open, < 0.2 % CPU idle. The UI renders on the CPU (`Win32RenderingMode.Software`):
+the VR panel is rasterised on the CPU anyway, and skipping the GPU backend saves ~50 MB. When nothing is on screen
+the app compacts its heap and trims its working set.
 
 ## Build & run
 
@@ -29,6 +47,12 @@ dotnet build
 dotnet test
 dotnet run --project src/AvatarDeck.App
 ```
+
+Installer: `./build/pack.ps1 [-Version 0.2.0]` publishes a self-contained ReadyToRun build and packs it with
+[Velopack](https://velopack.io) (`vpk`, a local dotnet tool) into `artifacts/releases/` (Setup.exe, portable zip,
+update packages). Upload those files to a GitHub release to ship an update.
+Only published builds contain `avatardeck.vrmanifest`, so a development build never replaces the installed app
+in SteamVR.
 
 In VRChat, enable OSC (Action menu → Options → OSC → Enabled). AvatarDeck sends to `127.0.0.1:9000`
 and listens on `127.0.0.1:9001` (configurable in `appsettings.json` or `%AppData%\AvatarDeck\settings.json`).
@@ -78,6 +102,7 @@ Diagnostics:
 - `--vr-diag <out>`: with SteamVR running, simulates laser clicks every 4 s and reads back the compositor's copy of the
   panel (`GetOverlayTexture`) to check what the headset is given.
 - `--show-vr` opens the panel at start, `--verbose` logs input, render and upload timings.
+- `--minimized` starts in the notification area; `--steamvr` (used by SteamVR) also quits when SteamVR exits.
 
 ## Profiles
 

@@ -73,6 +73,12 @@ public sealed partial class VrPanelViewModel : ObservableObject, IDisposable
         set => Update(() => Settings.Locked = value);
     }
 
+    public bool StartWithSteamVr
+    {
+        get => Settings.StartWithSteamVr;
+        set => Update(() => Settings.StartWithSteamVr = value);
+    }
+
     public bool WristButton
     {
         get => Settings.WristButton;
@@ -122,6 +128,12 @@ public sealed partial class VrPanelViewModel : ObservableObject, IDisposable
 public sealed class DisabledVrPanelController : IVrPanelController
 {
     public event EventHandler? StateChanged
+    {
+        add { }
+        remove { }
+    }
+
+    public event EventHandler? SteamVrExiting
     {
         add { }
         remove { }

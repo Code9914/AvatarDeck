@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Velopack;
 
 namespace AvatarDeck.App;
 
@@ -26,6 +27,9 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Installer hooks (install / update / uninstall): must run first, may exit the process.
+        VelopackApp.Build().Run();
+
         // --data-dir <path>: portable mode / testing with an isolated profile folder.
         var diagIndex = Array.IndexOf(args, "--vr-diag");
         if (diagIndex >= 0)
@@ -37,7 +41,24 @@ internal static class Program
         var paths = dataDirIndex >= 0 && dataDirIndex + 1 < args.Length
             ? new AppPaths(Path.GetFullPath(args[dataDirIndex + 1]))
             : new AppPaths();
-        using var host = CreateHost(args, paths);
+
+        // --steamvr: started by SteamVR (avatardeck.vrmanifest) → background, quit with SteamVR.
+        // --minimized: start in the notification area (e.g. Windows start-up).
+        var startedBySteamVr = args.Contains("--steamvr");
+        var options = new AppLaunchOptions(
+            StartHidden: startedBySteamVr || args.Contains("--minimized"),
+            ExitWithSteamVr: startedBySteamVr);
+
+        using var instance = SingleInstance.TryAcquire(
+            paths.Root,
+            activateExisting: !startedBySteamVr,
+            onActivate: () => Dispatcher.UIThread.Post(() => (Application.Current as AvatarDeck.UI.App)?.ShowMainWindow()));
+        if (instance is null)
+        {
+            return 0; // already running: it has been asked to show its window
+        }
+
+        using var host = CreateHost(args, paths, options);
         var logger = host.Services.GetRequiredService<ILogger<HostMarker>>();
 
         try
@@ -114,7 +135,7 @@ internal static class Program
         }
     }
 
-    private static IHost CreateHost(string[] args, AppPaths paths)
+    private static IHost CreateHost(string[] args, AppPaths paths, AppLaunchOptions options)
     {
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -142,6 +163,8 @@ internal static class Program
             .AddAvatarDeckVr(connectToSteamVr: !args.Contains("--vr-selftest")) // self-test must not react to a real headset
             .AddSingleton<OffscreenPanelHost>()
             .AddSingleton<IOverlaySurface>(sp => sp.GetRequiredService<OffscreenPanelHost>())
+            .AddSingleton(options)
+            .AddHostedService<UpdateService>()
             .AddSingleton<VrPanelViewModel>()
             .AddSingleton<MainViewModel>();
 
@@ -152,6 +175,9 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp(IServiceProvider services) =>
         AppBuilder.Configure(() => new AvatarDeck.UI.App(services))
             .UsePlatformDetect()
+            // CPU rendering: the VR panel is rasterised on the CPU anyway (RenderTargetBitmap), and skipping the GPU
+            // backend (ANGLE + graphics driver) cuts ~50 MB of memory. The desktop window is small and mostly static.
+            .With(new Win32PlatformOptions { RenderingMode = [Win32RenderingMode.Software] })
             .WithInterFont()
             .LogToTrace();
 

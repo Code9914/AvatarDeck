@@ -1,0 +1,23 @@
+{
+  "source": "builtin",
+  "applications": [
+    {
+      "app_key": "avatardeck.app",
+      "launch_type": "binary",
+      "binary_path_windows": "AvatarDeck.exe",
+      "arguments": "--steamvr",
+      "is_dashboard_overlay": true,
+      "image_path": "avatardeck.png",
+      "strings": {
+        "en_us": {
+          "name": "AvatarDeck",
+          "description": "VRChat avatar parameter menu, controlled with the laser and the trigger."
+        },
+        "fr_fr": {
+          "name": "AvatarDeck",
+          "description": "Menu des paramètres d'avatar VRChat, piloté au laser et à la gâchette."
+        }
+      }
+    }
+  ]
+}

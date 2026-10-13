@@ -287,7 +287,7 @@ internal static class WidgetConversions
             _ => new SliderWidget
             {
                 Minimum = 0,
-                Maximum = source.ParameterType == ParameterType.Int ? 255 : 1,
+                Maximum = source.ParameterType == ParameterType.Int ? 9 : 1, // int: stepper, like the generator
                 Step = source.ParameterType == ParameterType.Int ? 1 : 0,
             },
         };

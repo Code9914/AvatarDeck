@@ -46,6 +46,15 @@ public sealed class VrPanelSettings
     /// <summary>Hand carrying the wrist button.</summary>
     public PanelAnchor WristHand { get; set; } = PanelAnchor.LeftHand;
 
+    /// <summary>Let SteamVR start AvatarDeck automatically (in the background) when SteamVR starts.</summary>
+    public bool StartWithSteamVr { get; set; } = true;
+
+    /// <summary>
+    /// Set once <see cref="StartWithSteamVr"/> has been pushed to SteamVR the first time. From then on SteamVR's own
+    /// setting (which the user can also change in SteamVR) is the reference and is read back at each connection.
+    /// </summary>
+    public bool AutoLaunchConfigured { get; set; }
+
     /// <summary>Supersampling of the panel texture (1 = 1 texel per UI pixel). Higher is sharper but heavier.</summary>
     public float RenderScale { get; set; } = 1.5f;
 }

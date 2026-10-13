@@ -34,6 +34,11 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
     private const string HandleKey = "avatardeck.handle";
     private const string CursorKey = "avatardeck.cursor";
     private const string WristKey = "avatardeck.wrist";
+
+    /// <summary>Application key declared in <c>avatardeck.vrmanifest</c> (shipped with published builds only).</summary>
+    public const string AppKey = "avatardeck.app";
+
+    private const string ManifestFileName = "avatardeck.vrmanifest";
     private const float CursorWidth = 0.016f;
     private const float WristWidth = 0.055f;
     private const float HandleWidth = 0.2f;
@@ -259,6 +264,8 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
 
     public event EventHandler? StateChanged;
 
+    public event EventHandler? SteamVrExiting;
+
     public VrStatus Status => _status;
 
     public string StatusMessage => _statusMessage;
@@ -317,6 +324,11 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
             }
 
             ApplyOverlaySettings();
+            if (_connected)
+            {
+                ApplyAutoLaunch();
+            }
+
             ApplyPanelTransform();
             _wristDevice = uint.MaxValue; // re-attach the wrist button (hand may have changed)
             _wristOffset = null;
@@ -440,6 +452,7 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
             _readback = DiagnosticsDirectory is null ? null : new CompositorReadback(_d3d, _logger) { OutputDirectory = DiagnosticsDirectory };
 
             _connected = true;
+            RegisterApplication();
             _wristDevice = uint.MaxValue;
             ApplyOverlaySettings();
             SetStatus(VrStatus.Connected, _input.IsReady ? "Connected to SteamVR" : "Connected (controller input unavailable)");
@@ -526,8 +539,10 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
         {
             if (vrEvent.eventType == (uint)EVREventType.VREvent_Quit)
             {
+                _logger.LogInformation("SteamVR is shutting down");
                 OpenVR.System.AcknowledgeQuit_Exiting();
                 Disconnect();
+                SteamVrExiting?.Invoke(this, EventArgs.Empty);
                 return;
             }
         }
@@ -682,12 +697,81 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
         }
     }
 
+    /// <summary>Whether this build ships a SteamVR application manifest (published builds; not dev builds).</summary>
+    private static string? ManifestPath =>
+        Path.Combine(AppContext.BaseDirectory, ManifestFileName) is var path && File.Exists(path) ? path : null;
+
+    private bool _applicationRegistered;
+
+    /// <summary>
+    /// Registers AvatarDeck with SteamVR (listed under Settings › Startup / Shutdown › Overlay startup apps) and
+    /// identifies this process as that application, so SteamVR can start it and knows it is already running.
+    /// </summary>
+    private void RegisterApplication()
+    {
+        _applicationRegistered = false;
+        if (ManifestPath is not { } manifest)
+        {
+            _logger.LogDebug("No {Manifest} next to the executable (development build): not registering with SteamVR", ManifestFileName);
+            return;
+        }
+
+        var applications = OpenVR.Applications;
+        var error = applications.AddApplicationManifest(manifest, false);
+        if (error != EVRApplicationError.None)
+        {
+            _logger.LogWarning("Could not register the SteamVR application manifest {Manifest}: {Error}", manifest, error);
+            return;
+        }
+
+        error = applications.IdentifyApplication((uint)Environment.ProcessId, AppKey);
+        if (error != EVRApplicationError.None)
+        {
+            _logger.LogDebug("IdentifyApplication: {Error}", error);
+        }
+
+        _applicationRegistered = true;
+        _logger.LogInformation("Registered with SteamVR ({Manifest})", manifest);
+
+        if (!Settings.AutoLaunchConfigured)
+        {
+                Settings.AutoLaunchConfigured = true;
+            Persist();
+        }
+        else if (applications.GetApplicationAutoLaunch(AppKey) is var enabled && enabled != Settings.StartWithSteamVr)
+        {
+            Settings.StartWithSteamVr = enabled; // changed in SteamVR's settings
+            Persist();
+            RaiseStateChanged();
+        }
+    }
+
+    private void ApplyAutoLaunch()
+    {
+        if (!_applicationRegistered || OpenVR.Applications.GetApplicationAutoLaunch(AppKey) == Settings.StartWithSteamVr)
+        {
+            return;
+        }
+
+        var error = OpenVR.Applications.SetApplicationAutoLaunch(AppKey, Settings.StartWithSteamVr);
+        if (error == EVRApplicationError.None)
+        {
+            _logger.LogInformation("Start with SteamVR: {Enabled}", Settings.StartWithSteamVr);
+        }
+        else
+        {
+            _logger.LogWarning("Could not change the SteamVR auto-launch setting: {Error}", error);
+        }
+    }
+
     private void ApplyOverlaySettings()
     {
         if (!_connected)
         {
             return;
         }
+
+        ApplyAutoLaunch();
 
         foreach (var panel in _panels)
         {

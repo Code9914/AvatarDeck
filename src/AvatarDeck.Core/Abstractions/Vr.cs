@@ -79,6 +79,9 @@ public interface IVrPanelController
     /// <summary>Raised (any thread) when status, visibility or settings change.</summary>
     event EventHandler? StateChanged;
 
+    /// <summary>Raised (VR thread) when SteamVR is shutting down.</summary>
+    event EventHandler? SteamVrExiting;
+
     void ShowPanel();
 
     void HidePanel();
