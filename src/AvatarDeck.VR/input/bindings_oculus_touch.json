@@ -1,0 +1,48 @@
+{
+  "controller_type": "oculus_touch",
+  "name": "AvatarDeck defaults (Oculus Touch)",
+  "description": "Trigger clicks; drag the handle under the panel to move it; double-press shows/hides.",
+  "bindings": {
+    "/actions/avatardeck": {
+      "poses": [
+        {
+          "output": "/actions/avatardeck/in/pointer",
+          "path": "/user/hand/left/pose/tip"
+        },
+        {
+          "output": "/actions/avatardeck/in/pointer",
+          "path": "/user/hand/right/pose/tip"
+        }
+      ],
+      "sources": [
+        {
+          "path": "/user/hand/left/input/trigger",
+          "mode": "trigger",
+          "inputs": {
+            "pull": {
+              "output": "/actions/avatardeck/in/click"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/trigger",
+          "mode": "trigger",
+          "inputs": {
+            "pull": {
+              "output": "/actions/avatardeck/in/click"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/y",
+          "mode": "button",
+          "inputs": {
+            "double": {
+              "output": "/actions/avatardeck/in/toggle"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

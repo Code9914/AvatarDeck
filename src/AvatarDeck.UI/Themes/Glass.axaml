@@ -204,6 +204,22 @@
     <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
   </Style>
 
+  <!-- Int stepper buttons -->
+  <Style Selector="Button.step">
+    <Setter Property="Width" Value="44" />
+    <Setter Property="Height" Value="40" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="Background" Value="#22FFFFFF" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.step:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+  </Style>
+
   <!-- Favorite star overlay -->
   <Style Selector="Button.star">
     <Setter Property="Padding" Value="6" />

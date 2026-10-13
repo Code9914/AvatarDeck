@@ -69,6 +69,31 @@ public sealed partial class SliderWidgetViewModel : WidgetViewModel
 
     public double Maximum => _model.Maximum;
 
+    /// <summary>Int parameters are shown as a − value + stepper (discrete states) instead of a slider.</summary>
+    public bool IsStepper => _model.ParameterType == ParameterType.Int;
+
+    public bool IsSlider => !IsStepper;
+
+    [RelayCommand]
+    private void Decrement() => StepBy(-1);
+
+    [RelayCommand]
+    private void Increment() => StepBy(+1);
+
+    private void StepBy(int delta)
+    {
+        var next = Math.Clamp(Math.Round(Value) + delta, _model.Minimum, _model.Maximum);
+        if (next != Value)
+        {
+            _stepping = true;
+            Value = next;
+            _stepping = false;
+            SendDiscrete(Parameter, OscValue.FromInt((int)next));
+        }
+    }
+
+    private bool _stepping;
+
     public double Step => _model.ParameterType == ParameterType.Int ? Math.Max(1, _model.Step) : _model.Step;
 
     public bool SnapToStep => Step > 0;
@@ -85,6 +110,11 @@ public sealed partial class SliderWidgetViewModel : WidgetViewModel
 
     partial void OnValueChanged(double value)
     {
+        if (_stepping)
+        {
+            return; // stepper sends a discrete, ordered value itself
+        }
+
         if (!IsApplyingRemote)
         {
             SendContinuous(Parameter, OscValue.FromFloat((float)value));

@@ -44,8 +44,10 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
         IVrcStateSync sync,
         PresetRunner presetRunner,
         INotificationService notifications,
+        VrPanelViewModel vr,
         ILogger<MainViewModel> logger)
     {
+        Vr = vr;
         _profiles = profiles;
         _store = store;
         Sender = sender;
@@ -65,6 +67,9 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
     }
 
     public IParameterSender Sender { get; }
+
+    /// <summary>VR panel settings sheet.</summary>
+    public VrPanelViewModel Vr { get; }
 
     public ObservableCollection<NavItemViewModel> NavItems { get; } = [];
 
@@ -332,6 +337,7 @@ public sealed partial class MainViewModel : ObservableObject, IWidgetHost, IDisp
 
     partial void OnSelectedNavChanged(NavItemViewModel? value)
     {
+        _logger.LogInformation("Tab selected: {Tab}", value?.Title);
         SearchText = string.Empty;
         IsPresetsPage = value?.Kind == NavKind.Presets;
         CurrentFolder = value?.Folder;

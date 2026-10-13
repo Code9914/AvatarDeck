@@ -26,7 +26,7 @@ namespace AvatarDeck.Core.Services;
 public static partial class ProfileBuilder
 {
     /// <summary>Bump when the rules change: untouched generated profiles are then re-organised automatically.</summary>
-    public const int GeneratorVersion = 3;
+    public const int GeneratorVersion = 4;
 
     /// <summary>Folder receiving parameters that have no path prefix.</summary>
     public const string DefaultFolderName = "Avatar";
@@ -160,6 +160,57 @@ public static partial class ProfileBuilder
         return rebuilt;
     }
 
+    /// <summary>
+    /// Repairs widgets bound to invalid OSC addresses (names containing spaces, created by older versions from
+    /// VRChat's OSC config): renames them to the real address, or removes them when the corrected widget already
+    /// exists. Favorites pointing to removed widgets are dropped.
+    /// </summary>
+    /// <returns>Number of widgets fixed or removed.</returns>
+    public static int RepairAddresses(AvatarProfile profile)
+    {
+        var changes = 0;
+        var emptied = new List<Folder>();
+        var valid = profile.AllWidgets().Where(w => !w.Parameter.Contains(' ', StringComparison.Ordinal))
+            .Select(w => w.Parameter).ToHashSet(StringComparer.Ordinal);
+        foreach (var folder in profile.AllFolders().ToList())
+        {
+            for (var i = folder.Widgets.Count - 1; i >= 0; i--)
+            {
+                var widget = folder.Widgets[i];
+                if (!widget.Parameter.Contains(' ', StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var fixedName = widget.Parameter.Replace(' ', '_');
+                if (valid.Contains(fixedName))
+                {
+                    folder.Widgets.RemoveAt(i);
+                    profile.Favorites.Remove(widget.Id);
+                    if (folder.Widgets.Count == 0 && folder.Children.Count == 0)
+                    {
+                        emptied.Add(folder);
+                    }
+                }
+                else
+                {
+                    widget.Parameter = fixedName;
+                    valid.Add(fixedName);
+                }
+
+                changes++;
+            }
+        }
+
+        // Only folders emptied by this clean-up are removed (never an empty folder the user created).
+        foreach (var folder in emptied)
+        {
+            profile.FindSiblings(folder).Remove(folder);
+        }
+
+        return changes;
+    }
+
     /// <summary>Creates the default widget for a parameter.</summary>
     public static WidgetBase CreateWidget(ParameterDefinition parameter, string? label = null)
     {
@@ -167,7 +218,9 @@ public static partial class ProfileBuilder
         return parameter.Type switch
         {
             ParameterType.Bool => new ToggleWidget { Label = label, Parameter = parameter.Name, ParameterType = ParameterType.Bool },
-            ParameterType.Int => new SliderWidget { Label = label, Parameter = parameter.Name, ParameterType = ParameterType.Int, Minimum = 0, Maximum = 255, Step = 1 },
+            // Avatar int parameters select among a few states (outfits, expressions…): a 0–9 stepper fits most;
+            // the range can be changed in the editor. A 0–255 slider made most positions do nothing.
+            ParameterType.Int => new SliderWidget { Label = label, Parameter = parameter.Name, ParameterType = ParameterType.Int, Minimum = 0, Maximum = 9, Step = 1 },
             _ => new SliderWidget { Label = label, Parameter = parameter.Name, ParameterType = ParameterType.Float },
         };
     }

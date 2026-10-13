@@ -97,6 +97,7 @@ public sealed class ProfilePersistenceTests : IDisposable
         definition!.Name.Should().Be("Fixture Fox");
         definition.Parameters.Should().Contain(new ParameterDefinition("VelocityX", ParameterType.Float, IsWritable: false));
         definition.Parameters.Should().Contain(new ParameterDefinition("Clothes/Hoodie", ParameterType.Bool));
+        definition.Parameters.Should().Contain(new ParameterDefinition("Invis_Fix_ON", ParameterType.Bool), "the OSC address wins over the display name");
         (await reader.TryGetAsync("avtr_missing")).Should().BeNull();
     }
 }

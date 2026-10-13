@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 
 # AvatarDeck local dev data
 .devdata/
+
+# The default "*.app" rule (macOS bundles) also matches the AvatarDeck.App project folder on case-insensitive file systems
+!src/AvatarDeck.App/

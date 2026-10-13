@@ -62,6 +62,15 @@ public interface IVrcStateSync
     Task<bool> SyncAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>Loads and saves <see cref="AppSettings"/>.</summary>
+public interface ISettingsStore
+{
+    /// <summary>Settings loaded at startup (live object).</summary>
+    AppSettings Current { get; }
+
+    Task SaveAsync(CancellationToken cancellationToken = default);
+}
+
 /// <summary>Persists avatar profiles.</summary>
 public interface IProfileStore
 {

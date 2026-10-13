@@ -9,6 +9,7 @@
              xmlns:w="using:AvatarDeck.UI.ViewModels.Widgets"
              xmlns:m="using:AvatarDeck.Core.Models"
              xmlns:a="using:AvatarDeck.Core.Abstractions"
+             xmlns:b="using:AvatarDeck.UI.Behaviors"
              x:Class="AvatarDeck.UI.Views.MainView"
              x:DataType="vm:MainViewModel"
              x:Name="Root">
@@ -72,10 +73,16 @@
               <TextBlock Text="{Binding DisplayLabel}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,6,0"
                          ToolTip.Tip="{Binding Label}" />
               <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"
-                         VerticalAlignment="Center" Margin="0,0,30,0" />
+                         VerticalAlignment="Center" Margin="0,0,30,0" IsVisible="{Binding IsSlider}" />
             </Grid>
-            <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}"
+            <Slider Grid.Row="1" Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding Value}" IsVisible="{Binding IsSlider}"
                     TickFrequency="{Binding Step}" IsSnapToTickEnabled="{Binding SnapToStep}" VerticalAlignment="Center" />
+            <!-- Int parameters: big − / + buttons (laser friendly), current value in between -->
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding IsStepper}" VerticalAlignment="Center" Margin="0,4,0,0">
+              <Button Classes="step" Content="&#xE738;" Command="{Binding DecrementCommand}" />
+              <TextBlock Grid.Column="1" Text="{Binding DisplayValue}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <Button Grid.Column="2" Classes="step" Content="&#xE710;" Command="{Binding IncrementCommand}" />
+            </Grid>
             <TextBlock Grid.Row="2" Classes="secondary" Text="{Binding Path}" IsVisible="{Binding ShowPath}" TextTrimming="CharacterEllipsis" />
           </Grid>
         </Border>
@@ -159,6 +166,14 @@
                   </StackPanel>
                 </Button>
               </StackPanel>
+
+              <Button Classes="railAction" Command="{Binding Vr.OpenCommand}">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Classes="icon" Text="&#xE7F4;" />
+                  <TextBlock Grid.Column="1" Text="VR panel" Margin="10,0,0,0" />
+                  <Ellipse Grid.Column="2" Classes="status" Classes.connected="{Binding Vr.IsConnected}" VerticalAlignment="Center" />
+                </Grid>
+              </Button>
 
               <TextBlock Classes="secondary" Text="Avatar" Margin="8,4,0,0" />
               <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
@@ -264,7 +279,7 @@
           </ItemsControl>
 
           <Panel Grid.Row="3">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsScrollInertiaEnabled="True">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsScrollInertiaEnabled="True" b:DragScroll.IsEnabled="True">
               <StackPanel>
                 <!-- Presets page -->
                 <StackPanel IsVisible="{Binding ShowPresets}" Spacing="12" Margin="6,0,6,12">
@@ -366,6 +381,17 @@
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </StackPanel>
+
+              <Grid ColumnDefinitions="*,16,*" IsVisible="{Binding HasRange}">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Minimum value" />
+                  <NumericUpDown Value="{Binding RangeMinimum}" Increment="1" FormatString="0.##" CornerRadius="12" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Maximum value" />
+                  <NumericUpDown Value="{Binding RangeMaximum}" Increment="1" FormatString="0.##" CornerRadius="12" />
+                </StackPanel>
+              </Grid>
 
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="6">
@@ -489,6 +515,93 @@
                 </Button>
                 <Button Grid.Column="2" Classes="primary" Content="Done" Command="{Binding CloseCommand}" HorizontalAlignment="Right" />
               </Grid>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Panel>
+
+      <!-- ── VR panel settings (modal) ── -->
+      <Panel IsVisible="{Binding Vr.IsOpen}">
+        <Button Classes="scrim" Command="{Binding Vr.CloseCommand}" />
+        <Border Classes="glass sheet">
+          <ScrollViewer DataContext="{Binding Vr}" x:DataType="vm:VrPanelViewModel">
+            <StackPanel Spacing="16" Margin="26,22">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="title" Text="VR panel" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Ellipse Classes="status" Classes.connected="{Binding IsConnected}" VerticalAlignment="Center" />
+                    <TextBlock Classes="secondary" Text="{Binding StatusText}" />
+                  </StackPanel>
+                </StackPanel>
+                <Button Grid.Column="1" Classes="icon" Content="&#xE711;" Command="{Binding CloseCommand}" VerticalAlignment="Top" />
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Show in headset" />
+                  <ToggleSwitch IsChecked="{Binding IsPanelVisible}" OnContent="Visible" OffContent="Hidden" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="chip" Command="{Binding RecenterCommand}" VerticalAlignment="Bottom"
+                        ToolTip.Tip="Bring the panel in front of you">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="icon" Text="&#xE81D;" />
+                    <TextBlock Text="Recenter" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+
+              <StackPanel Spacing="6">
+                <TextBlock Classes="fieldLabel" Text="Attach to" />
+                <ItemsControl ItemsSource="{Binding Anchors}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ChoiceViewModel">
+                      <Button Classes="chip" Classes.selected="{Binding IsSelected}" Content="{Binding Display}"
+                              Command="{Binding $parent[ItemsControl].((vm:VrPanelViewModel)DataContext).SetAnchorCommand}" CommandParameter="{Binding}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="*,24,*">
+                <StackPanel Spacing="2">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="fieldLabel" Text="Opacity" />
+                    <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding OpacityPercent, StringFormat={}{0:0} %}" />
+                  </Grid>
+                  <Slider Minimum="20" Maximum="100" Value="{Binding OpacityPercent}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="2">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="fieldLabel" Text="Size" />
+                    <TextBlock Grid.Column="1" Classes="secondary" Text="{Binding WidthCentimeters, StringFormat={}{0:0} cm}" />
+                  </Grid>
+                  <Slider Minimum="25" Maximum="120" Value="{Binding WidthCentimeters}" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,*">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Lock position" />
+                  <ToggleSwitch IsChecked="{Binding Locked}" OnContent="Locked" OffContent="Movable" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                  <TextBlock Classes="fieldLabel" Text="Wrist button" />
+                  <ToggleSwitch IsChecked="{Binding WristButton}" OnContent="Shown" OffContent="Hidden" />
+                </StackPanel>
+              </Grid>
+
+              <Border Classes="editBanner" Margin="0">
+                <TextBlock TextWrapping="Wrap" FontSize="13"
+                           Text="Point with either controller · Trigger: click · Drag up/down: scroll · Grip: move the panel · Both grips: resize · Wrist button (left hand) or double-press left B: show / hide. Controls can be rebound in SteamVR › Controller bindings › AvatarDeck." />
+              </Border>
+
+              <Button Classes="primary" Content="Done" Command="{Binding CloseCommand}" HorizontalAlignment="Right" />
             </StackPanel>
           </ScrollViewer>
         </Border>

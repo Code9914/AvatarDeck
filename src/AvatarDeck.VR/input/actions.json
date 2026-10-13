@@ -1,0 +1,52 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "knuckles",
+      "binding_url": "bindings_knuckles.json"
+    },
+    {
+      "controller_type": "oculus_touch",
+      "binding_url": "bindings_oculus_touch.json"
+    },
+    {
+      "controller_type": "vive_controller",
+      "binding_url": "bindings_vive_controller.json"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/avatardeck",
+      "usage": "leftright"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/avatardeck/in/pointer",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/avatardeck/in/click",
+      "type": "vector1"
+    },
+    {
+      "name": "/actions/avatardeck/in/toggle",
+      "type": "boolean"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/avatardeck": "AvatarDeck",
+      "/actions/avatardeck/in/pointer": "Laser pointer (aim)",
+      "/actions/avatardeck/in/click": "Click on the panel (also drags the handle / wrist button)",
+      "/actions/avatardeck/in/toggle": "Show / hide the panel"
+    },
+    {
+      "language_tag": "fr_FR",
+      "/actions/avatardeck": "AvatarDeck",
+      "/actions/avatardeck/in/pointer": "Pointeur laser (visée)",
+      "/actions/avatardeck/in/click": "Cliquer sur le panneau (et déplacer la poignée / le bouton de poignet)",
+      "/actions/avatardeck/in/toggle": "Afficher / masquer le panneau"
+    }
+  ]
+}

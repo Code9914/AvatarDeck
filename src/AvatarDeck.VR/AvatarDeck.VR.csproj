@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AvatarDeck.Core\AvatarDeck.Core.csproj" />
+    <ProjectReference Include="..\AvatarDeck.VR.OpenVR\AvatarDeck.VR.OpenVR.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Vortice.Direct3D11" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- SteamVR input: action manifest + default bindings per controller (users can rebind in SteamVR). -->
+    <None Update="input\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AvatarDeck.VR.Tests" />
+  </ItemGroup>
+</Project>

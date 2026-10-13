@@ -76,7 +76,7 @@ public sealed partial class WidgetEditorViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Label), nameof(IsShown), nameof(ParameterInfo))]
+    [NotifyPropertyChangedFor(nameof(Label), nameof(IsShown), nameof(ParameterInfo), nameof(HasRange), nameof(RangeMinimum), nameof(RangeMaximum))]
     private WidgetBase _model;
 
     public IReadOnlyList<ChoiceViewModel> Kinds { get; }
@@ -84,6 +84,35 @@ public sealed partial class WidgetEditorViewModel : ObservableObject
     public IReadOnlyList<FolderChoiceViewModel> Folders => _host.FolderChoices;
 
     public string ParameterInfo => $"/avatar/parameters/{Model.Parameter} · {Model.ParameterType}";
+
+    /// <summary>Range editing applies to sliders and int steppers.</summary>
+    public bool HasRange => Model is SliderWidget;
+
+    public double RangeMinimum
+    {
+        get => (Model as SliderWidget)?.Minimum ?? 0;
+        set => SetRange(value, null);
+    }
+
+    public double RangeMaximum
+    {
+        get => (Model as SliderWidget)?.Maximum ?? 1;
+        set => SetRange(null, value);
+    }
+
+    private void SetRange(double? minimum, double? maximum)
+    {
+        if (Model is not SliderWidget slider)
+        {
+            return;
+        }
+
+        slider.Minimum = (float)(minimum ?? slider.Minimum);
+        slider.Maximum = (float)Math.Max(maximum ?? slider.Maximum, slider.Minimum + (slider.ParameterType == ParameterType.Int ? 1 : 0.01));
+        OnPropertyChanged(nameof(RangeMinimum));
+        OnPropertyChanged(nameof(RangeMaximum));
+        _host.OnLayoutEdited(rebuild: true);
+    }
 
     public string Label
     {

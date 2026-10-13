@@ -70,6 +70,12 @@ public sealed class ProfileManager : IDisposable
             }
 
             var profile = await _store.LoadAsync(avatarId, cancellationToken).ConfigureAwait(false);
+            if (profile is not null && ProfileBuilder.RepairAddresses(profile) is var repaired and > 0)
+            {
+                _logger.LogInformation("Repaired {Count} invalid parameter addresses in profile {AvatarId}", repaired, avatarId);
+                await _store.SaveAsync(profile, cancellationToken).ConfigureAwait(false);
+            }
+
             var definition = await FindDefinitionAsync(avatarId, cancellationToken).ConfigureAwait(false);
 
             if (profile is null)

@@ -6,6 +6,7 @@
 // offscreen rendering path the VR overlay uses (render a TopLevel → bitmap).
 using AvatarDeck.Infrastructure;
 using AvatarDeck.Osc;
+using AvatarDeck.Core.Abstractions;
 using AvatarDeck.UI.ViewModels;
 using AvatarDeck.UI.ViewModels.Widgets;
 using AvatarDeck.UI.Views;
@@ -33,6 +34,8 @@ var services = new ServiceCollection()
         ["Osc:VrChatDataDirectory"] = live ? null : Path.Combine(dataDir, "no-vrchat"),
     }).Build())
     .AddAvatarDeckCore(new AppPaths(dataDir))
+    .AddSingleton<IVrPanelController, DisabledVrPanelController>()
+    .AddSingleton<VrPanelViewModel>()
     .AddSingleton<MainViewModel>()
     .BuildServiceProvider();
 
@@ -101,11 +104,18 @@ Snap("01-favorites");
 vm.SelectedNav = vm.NavItems.First(n => n.Title == "Clothes");
 Snap("02-folder");
 
+vm.SelectedNav = vm.NavItems.First(n => n.Title == "Face");
+Snap("02b-face");
+
 vm.SelectedNav = vm.NavItems.First(n => n.Kind == NavKind.Presets);
 Snap("03-presets");
 
 vm.SearchText = "hair";
 Snap("04-search");
+
+vm.SearchText = string.Empty;
+vm.Vr.IsOpen = true;
+Snap("05-vr-panel");
 
 static void Pump(Func<bool> until, TimeSpan? max = null)
 {

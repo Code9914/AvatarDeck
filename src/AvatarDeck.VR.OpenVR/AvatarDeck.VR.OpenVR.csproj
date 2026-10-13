@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Valve's official OpenVR C# bindings (headers/openvr_api.cs, OpenVR SDK v2.15.6, BSD-3-Clause, see LICENSE),
+    vendored unmodified. Kept in its own assembly so the project's strict analyzer settings don't apply to
+    generated third-party code. The native openvr_api.dll is NOT shipped: it is loaded from the user's SteamVR
+    installation at runtime (see AvatarDeck.VR/OpenVrRuntime.cs).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS0414;CS8981;SYSLIB1054</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="LICENSE" />
+  </ItemGroup>
+</Project>

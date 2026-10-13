@@ -1,6 +1,8 @@
 using AvatarDeck.UI.ViewModels;
+using AvatarDeck.UI.Vr;
 using AvatarDeck.UI.Views;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +29,10 @@ public sealed partial class App : Application
         {
             var viewModel = _services.GetRequiredService<MainViewModel>();
             desktop.MainWindow = new MainWindow { DataContext = viewModel };
+
+            // The hidden VR surface is a second window: closing the desktop window must still exit.
+            desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
+            _services.GetService<OffscreenPanelHost>()?.Initialize(viewModel);
             _ = viewModel.InitializeAsync();
         }
 

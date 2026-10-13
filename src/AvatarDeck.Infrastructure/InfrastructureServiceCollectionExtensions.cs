@@ -16,6 +16,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IProfileStore, JsonProfileStore>();
+        services.AddSingleton<ISettingsStore, Settings.JsonSettingsStore>();
         services.AddSingleton<IAvatarDefinitionSource, VrcOscConfigReader>();
         services.AddSingleton<ProfileManager>();
         services.AddSingleton<PresetRunner>();

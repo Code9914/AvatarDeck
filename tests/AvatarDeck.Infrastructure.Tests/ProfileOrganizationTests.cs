@@ -117,6 +117,23 @@ public class ProfileOrganizationTests
         profile.AllWidgets().Single(w => w.Parameter == "Ragdoll.Audio1").Label.Should().Be("Ragdoll Audio 1");
     }
 
+    [Fact]
+    public void Repairs_widgets_bound_to_names_with_spaces()
+    {
+        var profile = ProfileBuilder.Build(new AvatarDefinition("a", "a", [F("Hair_hue")]), ProfileSource.VrcOscConfig);
+        var good = profile.AllWidgets().Single();
+        var duplicate = new SliderWidget { Parameter = "Hair hue" };
+        var orphan = new ToggleWidget { Parameter = "Invis Fix ON" };
+        profile.Folders[0].Widgets.AddRange([duplicate, orphan]);
+        profile.Favorites.Add(duplicate.Id);
+
+        ProfileBuilder.RepairAddresses(profile).Should().Be(2);
+
+        profile.AllWidgets().Should().HaveCount(2).And.Contain(good);
+        orphan.Parameter.Should().Be("Invis_Fix_ON");
+        profile.Favorites.Should().NotContain(duplicate.Id);
+    }
+
     [Theory]
     [InlineData("Hair Hue", "hair")]
     [InlineData("Tops", "top")]

@@ -15,5 +15,6 @@ namespace AvatarDeck.Infrastructure.Serialization;
     ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
     AllowTrailingCommas = true)]
 [JsonSerializable(typeof(AvatarProfile))]
+[JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(VrcOscConfigFile))]
 public sealed partial class AvatarDeckJsonContext : JsonSerializerContext;

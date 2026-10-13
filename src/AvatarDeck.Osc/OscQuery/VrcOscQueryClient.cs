@@ -69,7 +69,7 @@ public sealed partial class VrcOscQueryClient : IDisposable
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException && !cancellationToken.IsCancellationRequested)
             {
-                _logger.LogDebug(ex, "OSCQuery request on port {Port} failed", port);
+                _logger.LogDebug("OSCQuery request on port {Port} failed: {Error}", port, ex.Message); // expected while VRChat is closed
                 _cachedPort = null;
                 if (_options.OscQueryPort > 0)
                 {

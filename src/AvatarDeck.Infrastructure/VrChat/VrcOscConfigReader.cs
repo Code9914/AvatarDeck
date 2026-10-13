@@ -61,7 +61,9 @@ public sealed class VrcOscConfigReader : IAvatarDefinitionSource
                 continue;
             }
 
-            parameters.Add(new ParameterDefinition(p.Name, type, IsWritable: p.Input is not null));
+            // The address is authoritative: VRChat replaces spaces with '_' in addresses ("Hair hue" → /avatar/parameters/Hair_hue).
+            var name = ParameterAddress.TryGetName(endpoint.Address, out var fromAddress) ? fromAddress : p.Name;
+            parameters.Add(new ParameterDefinition(name, type, IsWritable: p.Input is not null));
         }
 
         _logger.LogInformation("Read {Count} parameters for {AvatarId} from VRChat OSC config", parameters.Count, avatarId);

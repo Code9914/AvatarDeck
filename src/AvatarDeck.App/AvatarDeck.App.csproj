@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>AvatarDeck</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!-- Footprint: smaller working set, faster startup -->
+    <TieredPGO>true</TieredPGO>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <SatelliteResourceLanguages>en;fr</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AvatarDeck.Core\AvatarDeck.Core.csproj" />
+    <ProjectReference Include="..\AvatarDeck.Osc\AvatarDeck.Osc.csproj" />
+    <ProjectReference Include="..\AvatarDeck.Infrastructure\AvatarDeck.Infrastructure.csproj" />
+    <ProjectReference Include="..\AvatarDeck.UI\AvatarDeck.UI.csproj" />
+    <ProjectReference Include="..\AvatarDeck.VR\AvatarDeck.VR.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
