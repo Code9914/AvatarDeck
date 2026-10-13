@@ -4,6 +4,8 @@ A floating VR tablet for SteamVR that controls VRChat avatar parameters over OSC
 a full replacement for the radial (R) menu, built for people whose controller sticks drift.
 Point, click, done: no joystick needed.
 
+**[Download the latest version](https://github.com/Code9914/AvatarDeck/releases/latest)** (`AvatarDeck-win-Setup.exe`)
+
 ![Favorites](docs/screenshots/01-favorites.png)
 
 ## Status
@@ -13,16 +15,16 @@ Point, click, done: no joystick needed.
 | 1 | Solution skeleton, DI host, logging, dark glass theme | ✅ |
 | 2 | OSC codec, UDP transport, VRChat client, avatar change detection, full-state sync (OSCQuery) | ✅ |
 | 3 | Domain model, JSON profiles, auto-generation from VRChat OSC config | ✅ |
-| 4 | Tablet UI: tabs, folders/pages, search, favorites, presets, toasts | ✅ first version |
+| 4 | Tablet UI: tabs, folders/pages, search, favorites, presets, toasts, layout edit mode | ✅ |
 | 5 | SteamVR overlay (offscreen render → D3D11 → `IVROverlay`) | ✅ |
 | 6 | Laser pointer, trigger click, drag-scroll, grab/move/resize, lock, opacity, wrist button | ✅ |
 | 7 | Unity project importer (Expression Parameters / Menus) | ⏳ |
-| 8 | Macros, hotkeys, local API, MIDI, Stream Deck, plugins, themes, import/export | ⏳ |
-| 9 | Footprint tuning (< 100 MB, < 1 % CPU idle), installer, SteamVR auto-start, tray | ✅ |
+| 8 | Footprint tuning (< 100 MB, < 1 % CPU idle), installer, SteamVR auto-start, tray | ✅ |
 
 ## Install
 
-Run `AvatarDeck-win-Setup.exe` (built with `./build/pack.ps1`, see below). It installs per user — no admin rights,
+Download `AvatarDeck-win-Setup.exe` from the [releases](https://github.com/Code9914/AvatarDeck/releases/latest) and run it
+(`AvatarDeck-win-Portable.zip` runs without installing). It installs per user — no admin rights,
 no .NET install needed — into `%LocalAppData%\AvatarDeck`, adds Start menu and desktop shortcuts, and starts the app.
 
 - **Start with SteamVR**: the first time AvatarDeck sees SteamVR it registers itself (`avatardeck.vrmanifest`) and
@@ -33,7 +35,7 @@ no .NET install needed — into `%LocalAppData%\AvatarDeck`, adds Start menu and
 - **Updates**: installed builds check the GitHub releases 30 s after start, download in the background and install
   when you quit (silently skipped if there is no release or no network).
 
-Footprint (Release, i7 desktop, avatar with 350 parameters): ~24 MB in the background, ~47 MB private / 115 MB
+Footprint (Release build, avatar with 350 parameters): ~24 MB in the background, ~47 MB private / 115 MB
 working set with the desktop window open, < 0.2 % CPU idle. The UI renders on the CPU (`Win32RenderingMode.Software`):
 the VR panel is rasterised on the CPU anyway, and skipping the GPU backend saves ~50 MB. When nothing is on screen
 the app compacts its heap and trims its working set.
@@ -72,28 +74,29 @@ dotnet run --project tools/OscSniffer -- --avatar avtr_demo
 
 ## VR panel (SteamVR)
 
-Start SteamVR, then AvatarDeck (any order — it waits for SteamVR and never launches it). The panel works with
-VRChat in OpenVR or OpenXR mode on PC (both run on the SteamVR runtime).
+With "Start with SteamVR" on, SteamVR starts AvatarDeck by itself. Otherwise start both in any order: AvatarDeck
+waits for SteamVR and never launches it. The panel works with VRChat in OpenVR or OpenXR mode on PC (both run on
+the SteamVR runtime).
 
 | Action | Default (Index) — trigger only, the grip stays free for the game |
 |---|---|
-| Show / hide | Trigger tap on the wrist button (left hand), double-press left **B**, or "VR panel" on the desktop |
+| Show / hide | Trigger tap on the wrist button (left hand), double-press left **B**, "VR panel" on the desktop, or the tray menu |
 | Click | Point with either controller, **trigger** (the aim is frozen as the trigger starts moving, plus a small dead zone) |
 | Scroll | Trigger held + drag up/down (no thumbstick) |
 | Move | Trigger held on the **handle** under the panel — the panel keeps facing you |
 | Resize | While moving, pull the other hand's trigger and spread / bring hands together |
 | Move the wrist button | Trigger held on it + move (position remembered) |
 
-"VR panel" settings: attach to the world or a hand, opacity, size, lock, wrist button, recenter.
+"VR panel" settings: attach to the world or a hand, opacity, size, lock, wrist button, start with SteamVR, recenter.
 Bindings can be changed in SteamVR › Settings › Controllers › Manage controller bindings › AvatarDeck.
 
 How it works: the same `MainView` is hosted in a hidden window, rendered to pixels only when something changes,
 and uploaded as a fresh shared D3D11 texture into two stacked overlays used alternately (the back one stays visible
 at 2 % opacity: SteamVR defers updates of hidden overlays). After each swap a tiny invisible "kick" overlay is
 touched, because SteamVR only redraws a GPU-textured overlay once another overlay of the process changes.
-`SetOverlayRaw` was tried too: SteamVR refuses every raw upload of the process after ~190 full-panel uploads. The laser is AvatarDeck's own (ray/panel intersection, aim from the
-controller pose with the measured Index tip offset), injected as Win32 mouse messages — so the game keeps all
-controller input. Int avatar parameters are shown as − value + steppers (range editable).
+`SetOverlayRaw` was tried too: SteamVR refuses every raw upload of the process after ~190 full-panel uploads.
+The laser is AvatarDeck's own (ray/panel intersection, aim from the controller pose with the measured Index tip
+offset), injected as Win32 mouse messages — so the game keeps all controller input. Int avatar parameters are shown as − value + steppers (range editable).
 OpenVR bindings: Valve's official `openvr_api.cs` (vendored, BSD-3); `openvr_api.dll` is loaded from SteamVR.
 
 Diagnostics:
@@ -145,10 +148,13 @@ src/
   AvatarDeck.UI              Avalonia views + MVVM view models, Glass theme, off-screen VR surface
   AvatarDeck.VR              SteamVR overlay service: overlays, laser, grab/resize, input actions, D3D11 upload
   AvatarDeck.VR.OpenVR       Valve's official OpenVR C# bindings (vendored, unmodified)
-  AvatarDeck.App             composition root: generic host, DI, Serilog, Avalonia startup
-tests/                       xUnit: codec, loopback UDP client, persistence, profile generation
+  AvatarDeck.App             composition root: generic host, DI, Serilog, Avalonia startup, single instance,
+                             Velopack hooks and updates, SteamVR manifest
+tests/                       xUnit: codec, loopback UDP client, persistence, profile generation, VR math
 tools/OscSniffer             fake VRChat for development
 tools/UiSnapshot             headless offscreen renderer → PNG
+tools/make_icon.py           generates the app icon (no dependencies)
+build/pack.ps1               publish + Velopack installer
 docs/adr/                    architecture decision records
 ```
 
