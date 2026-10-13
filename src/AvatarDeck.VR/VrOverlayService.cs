@@ -68,6 +68,7 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
     private OverlayTexture? _panelTexture;
     private OverlayTexture? _handleTexture;
     private OverlayTexture? _cursorTexture;
+    private OverlayTexture? _kickTexture;
     private OverlayTexture? _wristTexture;
     private VrInput? _input;
     /// <summary>
@@ -97,6 +98,100 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
 
     private ulong FrontPanel => _panels[_front];
 
+    /// <summary>Frame refused by SteamVR, re-uploaded on a later VR frame unless a newer one arrives.</summary>
+    private OverlayFrame? _retryFrame;
+    private DateTime? _uploadFailureSince;
+    private static readonly TimeSpan RetryBackoff = TimeSpan.FromMilliseconds(30);
+
+    /// <summary>Uploads a frame to the back panel and schedules the swap; a refused upload is retried later.</summary>
+    private void UploadPanelFrame(OverlayFrame frame)
+    {
+        _lastPanelUpload = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (!_panelTexture!.Submit(BackPanel, frame.Pixels, frame.Width, frame.Height, frame.Stride, frame.IsRgba))
+        {
+            // SteamVR refuses raw uploads (RequestFailed) after a couple of hundred uploads to the same overlay:
+            // resources it only frees when the overlay is destroyed. The failing overlay is always the back one
+            // (2 % opacity), so it is recreated invisibly while the front panel stays on screen, then retried.
+            ReportUploadFailure(_panelTexture.LastError);
+            RecreateBackPanel();
+            if (!_panelTexture.Submit(BackPanel, frame.Pixels, frame.Width, frame.Height, frame.Stride, frame.IsRgba))
+            {
+                _retryFrame = frame;
+                _lastPanelUpload += (long)(RetryBackoff.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
+                return;
+            }
+        }
+
+        _retryFrame = null;
+        _uploadFailureSince = null;
+        _swapCountdown = SwapDelayFrames;
+        _uploadCount++;
+        _uploadTotalMs += _panelTexture.LastUploadMs;
+        if (DateTime.UtcNow - _uploadStatsSince > TimeSpan.FromSeconds(2))
+        {
+            _logger.LogDebug("VR upload: {Count} panel uploads, avg {Avg:0.0} ms", _uploadCount, _uploadTotalMs / _uploadCount);
+            _uploadCount = 0;
+            _uploadTotalMs = 0;
+            _uploadStatsSince = DateTime.UtcNow;
+        }
+
+        if (_readback is not null)
+        {
+            _readback.RecordSubmitted(frame.Pixels, frame.Width, frame.Height, frame.IsRgba);
+            _diagChecks.Clear();
+            _diagChecks.Enqueue(DateTime.UtcNow.AddMilliseconds(100));
+            _diagChecks.Enqueue(DateTime.UtcNow.AddMilliseconds(600));
+            _diagChecks.Enqueue(DateTime.UtcNow.AddMilliseconds(2000));
+        }
+    }
+
+    private void KickCompositor()
+    {
+        if (PanelWorld() is { } panel)
+        {
+            // Hidden behind the panel centre; positioned so it is "visible" (hidden overlays are not processed).
+            var transform = VrMath.ToHmd(Matrix4x4.CreateTranslation(0, 0, -0.01f) * panel);
+            OpenVR.Overlay.SetOverlayTransformAbsolute(_kick, ETrackingUniverseOrigin.TrackingUniverseStanding, ref transform);
+        }
+
+        OpenVR.Overlay.ShowOverlay(_kick);
+        _kickTexture?.Submit(_kick, KickPixels, 4, 4, 16);
+    }
+
+    private int _panelGeneration;
+
+    /// <summary>Destroys and recreates the back panel overlay (frees SteamVR's per-overlay upload resources).</summary>
+    private void RecreateBackPanel()
+    {
+        var back = 1 - _front;
+        OpenVR.Overlay.DestroyOverlay(_panels[back]);
+        _panelGeneration++;
+        _panels[back] = CreateOverlay($"{PanelKey}.{_panelGeneration}", "AvatarDeck (buffer)");
+
+        var overlay = OpenVR.Overlay;
+        overlay.SetOverlaySortOrder(_panels[back], 1);
+        overlay.SetOverlayAlpha(_panels[back], BackPanelAlpha);
+        overlay.SetOverlayWidthInMeters(_panels[back], Settings.WidthMeters);
+        ApplyPanelTransform();
+        overlay.ShowOverlay(_panels[back]);
+        _logger.LogInformation("Recreated the back panel overlay after an upload refusal (generation {Generation})", _panelGeneration);
+    }
+
+    /// <summary>Upload refusals are expected now and then; only persistent ones (over a second) are worth a warning.</summary>
+    private void ReportUploadFailure(EVROverlayError error)
+    {
+        _uploadFailureSince ??= DateTime.UtcNow;
+        if (DateTime.UtcNow - _uploadFailureSince.Value > TimeSpan.FromSeconds(1))
+        {
+            _logger.LogWarning("Panel upload refused by SteamVR for over a second ({Error}); still retrying", error);
+            _uploadFailureSince = DateTime.UtcNow;
+        }
+        else
+        {
+            _logger.LogDebug("Panel upload refused ({Error}); retrying", error);
+        }
+    }
+
     private int _uploadCount;
     private double _uploadTotalMs;
     private DateTime _uploadStatsSince = DateTime.UtcNow;
@@ -104,6 +199,15 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
     private ulong BackPanel => _panels[1 - _front];
     private ulong _handle;
     private ulong _cursor;
+
+    /// <summary>
+    /// Tiny invisible overlay whose texture is re-submitted after each panel update. Observed in the headset:
+    /// SteamVR only redraws a GPU-textured overlay once *another* overlay of the process changes (the panel updated
+    /// as soon as the laser left it or the wrist/handle highlight changed). This does that change, invisibly.
+    /// </summary>
+    private ulong _kick;
+    private int _kickFrames;
+    private static readonly byte[] KickPixels = new byte[4 * 4 * 4];
     private ulong _wrist;
 
     // Panel pose
@@ -297,11 +401,13 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
             var adapter = -1;
             OpenVR.System.GetDXGIOutputInfo(ref adapter);
             _d3d = D3D11Device.Create(adapter);
-            // Raw upload: the only path that refreshes reliably in the headset. Shared D3D11 textures (single, double
-            // buffered, fresh per frame, or alternated between overlays) all ended up showing stale or odd content.
-            _panelTexture = new OverlayTexture(_d3d, OverlayUploadMode.Raw);
+            // GPU upload, a fresh shared texture per frame, into the two stacked always-visible panels.
+            // Raw upload (SetOverlayRaw) is not sustainable: SteamVR refuses every raw upload of the process
+            // (RequestFailed) after ~190 full-panel uploads, until the OpenVR connection is re-created.
+            _panelTexture = new OverlayTexture(_d3d, OverlayUploadMode.FreshTexture);
             _handleTexture = new OverlayTexture(_d3d);
             _cursorTexture = new OverlayTexture(_d3d);
+            _kickTexture = new OverlayTexture(_d3d);
             _wristTexture = new OverlayTexture(_d3d);
 
             _panels[0] = CreateOverlay(PanelKey, "AvatarDeck");
@@ -310,6 +416,10 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
             _swapCountdown = 0;
             _handle = CreateOverlay(HandleKey, "AvatarDeck move handle");
             _cursor = CreateOverlay(CursorKey, "AvatarDeck cursor");
+            _kick = CreateOverlay("avatardeck.kick", "AvatarDeck refresh");
+            OpenVR.Overlay.SetOverlayWidthInMeters(_kick, 0.001f);
+            OpenVR.Overlay.SetOverlayAlpha(_kick, 0.01f);
+            OpenVR.Overlay.SetOverlaySortOrder(_kick, 0);
             _wrist = CreateOverlay(WristKey, "AvatarDeck launcher");
 
             var overlay = OpenVR.Overlay;
@@ -388,6 +498,8 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
         _wristPressed = _wristDragging = false;
 
         _panelTexture?.Dispose();
+        _kickTexture?.Dispose();
+        _kickTexture = null;
         _handleTexture?.Dispose();
         _cursorTexture?.Dispose();
         _wristTexture?.Dispose();
@@ -454,32 +566,21 @@ public sealed class VrOverlayService : BackgroundService, IVrPanelController
                 OpenVR.Overlay.SetOverlaySortOrder(FrontPanel, 1);
                 OpenVR.Overlay.SetOverlayAlpha(FrontPanel, BackPanelAlpha);
                 _front = 1 - _front;
+                _kickFrames = 3;
+            }
+
+            // Nudge SteamVR into redrawing the panel (see _kick) for a few frames after each swap.
+            if (_kickFrames > 0)
+            {
+                _kickFrames--;
+                KickCompositor();
             }
 
             if (_swapCountdown == 0
                 && System.Diagnostics.Stopwatch.GetElapsedTime(_lastPanelUpload) >= PanelUploadInterval
-                && _surface.TakeFrame() is { } frame)
+                && (_surface.TakeFrame() ?? _retryFrame) is { } frame)
             {
-                _lastPanelUpload = System.Diagnostics.Stopwatch.GetTimestamp();
-                _panelTexture!.Submit(BackPanel, frame.Pixels, frame.Width, frame.Height, frame.Stride, frame.IsRgba);
-                _swapCountdown = SwapDelayFrames;
-                _uploadCount++;
-                _uploadTotalMs += _panelTexture.LastUploadMs;
-                if (DateTime.UtcNow - _uploadStatsSince > TimeSpan.FromSeconds(2))
-                {
-                    _logger.LogDebug("VR upload: {Count} panel uploads, avg {Avg:0.0} ms", _uploadCount, _uploadTotalMs / _uploadCount);
-                    _uploadCount = 0;
-                    _uploadTotalMs = 0;
-                    _uploadStatsSince = DateTime.UtcNow;
-                }
-                if (_readback is not null)
-                {
-                    _readback.RecordSubmitted(frame.Pixels, frame.Width, frame.Height, frame.IsRgba);
-                    _diagChecks.Clear();
-                    _diagChecks.Enqueue(DateTime.UtcNow.AddMilliseconds(100));
-                    _diagChecks.Enqueue(DateTime.UtcNow.AddMilliseconds(600));
-                    _diagChecks.Enqueue(DateTime.UtcNow.AddMilliseconds(2000));
-                }
+                UploadPanelFrame(frame);
             }
 
             if (_readback is not null && _diagChecks.TryPeek(out var due) && DateTime.UtcNow >= due)

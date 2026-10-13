@@ -64,9 +64,10 @@ VRChat in OpenVR or OpenXR mode on PC (both run on the SteamVR runtime).
 Bindings can be changed in SteamVR › Settings › Controllers › Manage controller bindings › AvatarDeck.
 
 How it works: the same `MainView` is hosted in a hidden window, rendered to pixels only when something changes,
-and uploaded with `IVROverlay::SetOverlayRaw` into two stacked overlays used alternately (the back one stays
-visible at 2 % opacity, because SteamVR defers updates of hidden overlays) — shared D3D11 textures were tried and
-did not refresh reliably in the headset. The laser is AvatarDeck's own (ray/panel intersection, aim from the
+and uploaded as a fresh shared D3D11 texture into two stacked overlays used alternately (the back one stays visible
+at 2 % opacity: SteamVR defers updates of hidden overlays). After each swap a tiny invisible "kick" overlay is
+touched, because SteamVR only redraws a GPU-textured overlay once another overlay of the process changes.
+`SetOverlayRaw` was tried too: SteamVR refuses every raw upload of the process after ~190 full-panel uploads. The laser is AvatarDeck's own (ray/panel intersection, aim from the
 controller pose with the measured Index tip offset), injected as Win32 mouse messages — so the game keeps all
 controller input. Int avatar parameters are shown as − value + steppers (range editable).
 OpenVR bindings: Valve's official `openvr_api.cs` (vendored, BSD-3); `openvr_api.dll` is loaded from SteamVR.

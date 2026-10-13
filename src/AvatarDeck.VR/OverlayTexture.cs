@@ -86,13 +86,23 @@ public sealed class OverlayTexture(D3D11Device d3d, OverlayUploadMode mode = Ove
     /// <summary>Duration of the last upload (conversion included), for diagnostics.</summary>
     public double LastUploadMs { get; private set; }
 
-    /// <summary>Uploads pixels to an overlay: premultiplied BGRA, or straight RGBA when <paramref name="isRgba"/>.</summary>
-    public void Submit(ulong overlay, byte[] pixels, int width, int height, int stride, bool isRgba = false)
+    /// <summary>Error of the last upload (None when it succeeded).</summary>
+    public EVROverlayError LastError { get; private set; }
+
+    /// <summary>
+    /// Uploads pixels to an overlay: premultiplied BGRA, or straight RGBA when <paramref name="isRgba"/>.
+    /// </summary>
+    /// <returns>
+    /// False when SteamVR refused the upload. This happens occasionally (e.g. <c>RequestFailed</c> while it is still
+    /// processing a previous upload) and is transient: callers retry later instead of treating it as fatal.
+    /// </returns>
+    public bool Submit(ulong overlay, byte[] pixels, int width, int height, int stride, bool isRgba = false)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
-            SubmitCore(overlay, pixels, width, height, stride, isRgba);
+            LastError = SubmitCore(overlay, pixels, width, height, stride, isRgba);
+            return LastError == EVROverlayError.None;
         }
         finally
         {
@@ -100,12 +110,11 @@ public sealed class OverlayTexture(D3D11Device d3d, OverlayUploadMode mode = Ove
         }
     }
 
-    private void SubmitCore(ulong overlay, byte[] pixels, int width, int height, int stride, bool isRgba)
+    private EVROverlayError SubmitCore(ulong overlay, byte[] pixels, int width, int height, int stride, bool isRgba)
     {
         if (mode == OverlayUploadMode.Raw || isRgba)
         {
-            SubmitRaw(overlay, pixels, width, height, stride, isRgba);
-            return;
+            return SubmitRaw(overlay, pixels, width, height, stride, isRgba);
         }
 
         var texture = d3d.Device.CreateTexture2D(new Texture2DDescription
@@ -148,10 +157,7 @@ public sealed class OverlayTexture(D3D11Device d3d, OverlayUploadMode mode = Ove
             _recent.Dequeue().Dispose();
         }
 
-        if (error != EVROverlayError.None)
-        {
-            throw new InvalidOperationException($"SetOverlayTexture failed: {error}");
-        }
+        return error;
     }
 
     /// <summary>Blocks until the GPU has executed the upload (typically well under 1 ms).</summary>
@@ -173,12 +179,11 @@ public sealed class OverlayTexture(D3D11Device d3d, OverlayUploadMode mode = Ove
         }
     }
 
-    private void SubmitRaw(ulong overlay, byte[] pixels, int width, int height, int stride, bool isRgba)
+    private EVROverlayError SubmitRaw(ulong overlay, byte[] pixels, int width, int height, int stride, bool isRgba)
     {
         if (isRgba && stride == width * 4)
         {
-            Upload(overlay, pixels, width, height); // already in SteamVR's format: no conversion
-            return;
+            return Upload(overlay, pixels, width, height); // already in SteamVR's format: no conversion
         }
 
         var length = width * height * 4;
@@ -201,7 +206,7 @@ public sealed class OverlayTexture(D3D11Device d3d, OverlayUploadMode mode = Ove
             }
         }
 
-        Upload(overlay, _rgba, width, height);
+        return Upload(overlay, _rgba, width, height);
     }
 
     /// <summary>Swaps bytes 0 and 2 of every pixel (BGRA ⇄ RGBA), 16 bytes per SIMD shuffle, split across cores for large images.</summary>
@@ -247,16 +252,12 @@ public sealed class OverlayTexture(D3D11Device d3d, OverlayUploadMode mode = Ove
         }
     }
 
-    private static void Upload(ulong overlay, byte[] rgba, int width, int height)
+    private static EVROverlayError Upload(ulong overlay, byte[] rgba, int width, int height)
     {
         var handle = GCHandle.Alloc(rgba, GCHandleType.Pinned);
         try
         {
-            var error = OpenVR.Overlay.SetOverlayRaw(overlay, handle.AddrOfPinnedObject(), (uint)width, (uint)height, 4);
-            if (error != EVROverlayError.None)
-            {
-                throw new InvalidOperationException($"SetOverlayRaw failed: {error}");
-            }
+            return OpenVR.Overlay.SetOverlayRaw(overlay, handle.AddrOfPinnedObject(), (uint)width, (uint)height, 4);
         }
         finally
         {
